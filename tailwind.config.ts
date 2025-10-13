@@ -57,6 +57,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        gameplan: {
+          DEFAULT: "hsl(var(--game-plan))",
+          foreground: "hsl(var(--game-plan-foreground))",
+        },
+      },
+      transitionProperty: {
+        'smooth': 'var(--transition)',
       },
       borderRadius: {
         lg: "var(--radius)",
