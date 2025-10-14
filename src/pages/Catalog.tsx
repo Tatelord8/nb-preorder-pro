@@ -58,6 +58,7 @@ const Catalog = () => {
     const { data, error } = await supabase
       .from("productos")
       .select("*")
+      .eq("categoria", categoria)
       .order("nombre");
 
     if (error) {
