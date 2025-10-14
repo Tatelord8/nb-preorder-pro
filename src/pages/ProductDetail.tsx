@@ -254,7 +254,13 @@ const ProductDetail = () => {
                       type="number"
                       min="1"
                       value={cantidadCurvas}
-                      onChange={(e) => setCantidadCurvas(parseInt(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
+                      }}
+                      onBlur={(e) => {
+                        if (cantidadCurvas === 0) setCantidadCurvas(1);
+                      }}
                     />
                   </div>
                 </>
