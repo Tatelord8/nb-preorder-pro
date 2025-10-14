@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 
@@ -208,6 +208,32 @@ const Cart = () => {
     XLSX.writeFile(wb, `Pedido_${clienteInfo?.clientes?.nombre}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const handleRemoveItem = (index: number) => {
+    const updatedCartItems = [...cartItems];
+    const removedItem = updatedCartItems.splice(index, 1)[0];
+    
+    // Update cart array (product IDs)
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const remainingItemsForProduct = updatedCartItems.filter(
+      item => item.productoId === removedItem.productoId
+    );
+    
+    let updatedCart = cart;
+    if (remainingItemsForProduct.length === 0) {
+      updatedCart = cart.filter((id: string) => id !== removedItem.productoId);
+    }
+    
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
+    
+    setCartItems(updatedCartItems);
+    
+    toast({
+      title: "Producto eliminado",
+      description: "El producto fue eliminado del pedido",
+    });
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
@@ -250,12 +276,22 @@ const Cart = () => {
                 return (
                   <Card key={index} className="p-6">
                     <div className="space-y-4">
-                      <div className="flex justify-between">
-                        <div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
                           <h3 className="font-semibold">{producto.nombre}</h3>
                           <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
                         </div>
-                        <p className="font-bold">USD ${producto.precio_usd}</p>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold">USD ${producto.precio_usd}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveItem(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="text-sm space-y-2">

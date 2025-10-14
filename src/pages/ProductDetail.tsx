@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Producto {
@@ -37,13 +37,20 @@ const ProductDetail = () => {
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
   const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
+  const [isInCart, setIsInCart] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
       loadProducto();
+      checkIfInCart();
     }
   }, [id]);
+
+  const checkIfInCart = () => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    setIsInCart(cart.includes(id));
+  };
 
   const loadProducto = async () => {
     const { data: productoData, error: productoError } = await supabase
@@ -138,6 +145,24 @@ const ProductDetail = () => {
     });
 
     navigate(-1);
+  };
+
+  const handleRemoveFromCart = () => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
+
+    const updatedCart = cart.filter((productId: string) => productId !== id);
+    const updatedCartItems = cartItems.filter((item: any) => item.productoId !== id);
+
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
+
+    setIsInCart(false);
+
+    toast({
+      title: "Eliminado del pedido",
+      description: "El producto fue eliminado exitosamente",
+    });
   };
 
   if (!producto) {
@@ -258,9 +283,21 @@ const ProductDetail = () => {
               )}
             </div>
 
-            <Button onClick={handleAddToCart} className="w-full" size="lg">
-              Agregar a pedido
-            </Button>
+            {isInCart ? (
+              <Button 
+                onClick={handleRemoveFromCart} 
+                variant="destructive" 
+                className="w-full" 
+                size="lg"
+              >
+                <Trash2 className="h-5 w-5 mr-2" />
+                Eliminar del pedido
+              </Button>
+            ) : (
+              <Button onClick={handleAddToCart} className="w-full" size="lg">
+                Agregar a pedido
+              </Button>
+            )}
           </Card>
         </div>
       </main>
