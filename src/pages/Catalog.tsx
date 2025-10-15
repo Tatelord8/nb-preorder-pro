@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, ArrowLeft, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ShoppingCart, ArrowLeft, Check, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Producto {
@@ -25,6 +26,7 @@ const Catalog = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -75,6 +77,15 @@ const Catalog = () => {
 
   const isInCart = (productId: string) => cart.includes(productId);
 
+  const filteredProductos = productos.filter((producto) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      producto.sku.toLowerCase().includes(search) ||
+      producto.nombre.toLowerCase().includes(search)
+    );
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b sticky top-0 bg-background z-10">
@@ -98,11 +109,27 @@ const Catalog = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar por SKU o nombre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
         {loading ? (
           <div className="text-center py-12">Cargando productos...</div>
+        ) : filteredProductos.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            No se encontraron productos
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {productos.map((producto) => (
+            {filteredProductos.map((producto) => (
               <Card
                 key={producto.id}
                 className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg relative ${
