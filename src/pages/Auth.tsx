@@ -129,7 +129,7 @@ const Auth = () => {
               <SelectContent className="bg-popover z-50">
                 {clientes.map((cliente) => (
                   <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.nombre} (Tier {cliente.tier})
+                    {cliente.nombre}
                   </SelectItem>
                 ))}
               </SelectContent>
