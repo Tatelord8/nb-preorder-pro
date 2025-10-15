@@ -2,11 +2,28 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Shirt, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ShoppingBag, Shirt, LogOut, Search } from "lucide-react";
+
+interface Producto {
+  id: string;
+  sku: string;
+  nombre: string;
+  precio_usd: number;
+  linea: string;
+  categoria: string;
+  genero: string;
+  game_plan: boolean;
+  imagen_url: string | null;
+}
 
 const Welcome = () => {
   const navigate = useNavigate();
   const [clienteName, setClienteName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [productos, setProductos] = useState<Producto[]>([]);
 
   useEffect(() => {
     checkAuth();
@@ -36,6 +53,32 @@ const Welcome = () => {
     navigate("/auth");
   };
 
+  const searchProductos = async (term: string) => {
+    if (!term.trim()) {
+      setProductos([]);
+      return;
+    }
+
+    const search = term.toLowerCase();
+    const { data, error } = await supabase
+      .from("productos")
+      .select("*")
+      .or(`sku.ilike.%${search}%,nombre.ilike.%${search}%`)
+      .order("nombre");
+
+    if (!error && data) {
+      setProductos(data);
+    }
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchProductos(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -57,7 +100,68 @@ const Welcome = () => {
             <p className="text-xl text-muted-foreground">Selecciona una categoría para comenzar</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mt-12">
+          <div className="max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por SKU o nombre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {searchTerm && productos.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+              {productos.map((producto) => (
+                <Card
+                  key={producto.id}
+                  className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                    producto.game_plan ? "ring-2 ring-gameplan" : ""
+                  }`}
+                  onClick={() => navigate(`/product/${producto.id}`)}
+                >
+                  {producto.game_plan && (
+                    <Badge className="absolute top-2 left-2 z-10 bg-gameplan text-gameplan-foreground">
+                      GAME PLAN
+                    </Badge>
+                  )}
+
+                  <div className="aspect-square bg-muted">
+                    {producto.imagen_url ? (
+                      <img
+                        src={producto.imagen_url}
+                        alt={producto.nombre}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold line-clamp-2">{producto.nombre}</h3>
+                    <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">{producto.linea}</Badge>
+                      <Badge variant="outline">{producto.categoria}</Badge>
+                      <Badge variant="outline">{producto.genero}</Badge>
+                    </div>
+                    <p className="text-lg font-bold">USD ${producto.precio_usd}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : searchTerm && productos.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No se encontraron productos
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6 mt-12">
             <button
               onClick={() => navigate("/catalog/prendas")}
               className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary transition-all duration-300 p-12 bg-card"
@@ -88,6 +192,7 @@ const Welcome = () => {
               </div>
             </button>
           </div>
+          )}
         </div>
       </main>
     </div>
