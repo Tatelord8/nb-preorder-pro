@@ -71,6 +71,21 @@ const ProductDetail = () => {
 
     setProducto(productoData);
 
+    // Determine valid sizes based on category and gender
+    let validSizes: string[] = [];
+    const isCalzado = productoData.categoria.toLowerCase() === "calzados";
+    const isHombre = productoData.genero.toLowerCase() === "hombre";
+
+    if (isCalzado && isHombre) {
+      validSizes = ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13"];
+    } else if (isCalzado && !isHombre) {
+      validSizes = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
+    } else if (!isCalzado && isHombre) {
+      validSizes = ["S", "M", "L", "XL", "XXL"];
+    } else if (!isCalzado && !isHombre) {
+      validSizes = ["XS", "S", "M", "L", "XL"];
+    }
+
     // Load curvas for this genero
     const { data: curvasData } = await supabase
       .from("curvas")
@@ -78,21 +93,31 @@ const ProductDetail = () => {
       .eq("genero", productoData.genero);
 
     if (curvasData) {
-      const formattedCurvas = curvasData.map(c => ({
-        id: c.id,
-        nombre: c.nombre,
-        talles: c.talles as Record<string, number>,
-      }));
+      const formattedCurvas = curvasData.map(c => {
+        const talles = c.talles as Record<string, number>;
+        // Filter and order talles based on validSizes
+        const filteredTalles: Record<string, number> = {};
+        validSizes.forEach(size => {
+          if (talles[size] !== undefined) {
+            filteredTalles[size] = talles[size];
+          }
+        });
+        
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          talles: filteredTalles,
+        };
+      }).filter(c => Object.keys(c.talles).length > 0); // Only keep curves with valid sizes
+      
       setCurvas(formattedCurvas);
       
-      // Initialize custom talles with all sizes from first curva
-      if (formattedCurvas.length > 0) {
-        const initialTalles: Record<string, number> = {};
-        Object.keys(formattedCurvas[0].talles).forEach(talle => {
-          initialTalles[talle] = 0;
-        });
-        setCustomTalles(initialTalles);
-      }
+      // Initialize custom talles with valid sizes
+      const initialTalles: Record<string, number> = {};
+      validSizes.forEach(size => {
+        initialTalles[size] = 0;
+      });
+      setCustomTalles(initialTalles);
     }
   };
 
