@@ -38,6 +38,7 @@ const ProductDetail = () => {
   const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
   const [isInCart, setIsInCart] = useState(false);
+  const [validSizes, setValidSizes] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -72,19 +73,21 @@ const ProductDetail = () => {
     setProducto(productoData);
 
     // Determine valid sizes based on category and gender
-    let validSizes: string[] = [];
+    let sizes: string[] = [];
     const isCalzado = productoData.categoria.toLowerCase() === "calzados";
     const isHombre = productoData.genero.toLowerCase() === "hombre";
 
     if (isCalzado && isHombre) {
-      validSizes = ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13"];
+      sizes = ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13"];
     } else if (isCalzado && !isHombre) {
-      validSizes = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
+      sizes = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
     } else if (!isCalzado && isHombre) {
-      validSizes = ["S", "M", "L", "XL", "XXL"];
+      sizes = ["S", "M", "L", "XL", "XXL"];
     } else if (!isCalzado && !isHombre) {
-      validSizes = ["XS", "S", "M", "L", "XL"];
+      sizes = ["XS", "S", "M", "L", "XL"];
     }
+    
+    setValidSizes(sizes);
 
     // Load curvas for this genero
     const { data: curvasData } = await supabase
@@ -95,9 +98,9 @@ const ProductDetail = () => {
     if (curvasData) {
       const formattedCurvas = curvasData.map(c => {
         const talles = c.talles as Record<string, number>;
-        // Filter and order talles based on validSizes
+        // Filter and order talles based on sizes
         const filteredTalles: Record<string, number> = {};
-        validSizes.forEach(size => {
+        sizes.forEach(size => {
           if (talles[size] !== undefined) {
             filteredTalles[size] = talles[size];
           }
@@ -114,7 +117,7 @@ const ProductDetail = () => {
       
       // Initialize custom talles with valid sizes
       const initialTalles: Record<string, number> = {};
-      validSizes.forEach(size => {
+      sizes.forEach(size => {
         initialTalles[size] = 0;
       });
       setCustomTalles(initialTalles);
@@ -264,7 +267,7 @@ const ProductDetail = () => {
                             <div className="flex justify-between">
                               <span>{curva.nombre}</span>
                               <span className="text-xs text-muted-foreground">
-                                {Object.entries(curva.talles).map(([t, c]) => `${t}:${c}`).join(", ")}
+                                {validSizes.filter(size => curva.talles[size] !== undefined).map(size => `${size}:${curva.talles[size]}`).join(", ")}
                               </span>
                             </div>
                           </Label>
@@ -293,13 +296,13 @@ const ProductDetail = () => {
                 <div className="space-y-4">
                   <Label>Cantidades por talle</Label>
                   <div className="grid grid-cols-2 gap-4">
-                    {Object.keys(customTalles).map((talle) => (
+                    {validSizes.map((talle) => (
                       <div key={talle} className="space-y-2">
                         <Label>{talle}</Label>
                         <Input
                           type="number"
                           min="0"
-                          value={customTalles[talle]}
+                          value={customTalles[talle] || 0}
                           onChange={(e) =>
                             setCustomTalles({
                               ...customTalles,
