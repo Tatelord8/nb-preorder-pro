@@ -332,7 +332,12 @@ const Cart = () => {
               </div>
             </Card>
 
-            <Button onClick={handleFinalizarPedido} className="w-full" size="lg">
+            <Button 
+              onClick={handleFinalizarPedido} 
+              className="w-full touch-manipulation" 
+              size="lg"
+              disabled={loading}
+            >
               <Download className="h-5 w-5 mr-2" />
               Finalizar Pedido y Descargar
             </Button>

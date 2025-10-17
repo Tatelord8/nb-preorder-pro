@@ -123,12 +123,12 @@ const Auth = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium">Selecciona tu cliente</label>
             <Select value={selectedCliente} onValueChange={setSelectedCliente}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona un cliente" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
+              <SelectContent className="bg-popover z-[100] max-h-[300px] overflow-y-auto" position="popper" sideOffset={5}>
                 {clientes.map((cliente) => (
-                  <SelectItem key={cliente.id} value={cliente.id}>
+                  <SelectItem key={cliente.id} value={cliente.id} className="cursor-pointer">
                     {cliente.nombre}
                   </SelectItem>
                 ))}

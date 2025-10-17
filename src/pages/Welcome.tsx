@@ -81,13 +81,24 @@ const Welcome = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="border-b sticky top-0 bg-background z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">NEW BALANCE</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{clienteName}</span>
+            <h1 className="text-2xl font-bold">NEW BALANCE</h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/cart")}
+              className="flex items-center gap-2"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              <span className="hidden sm:inline">Mi Pedido</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-xs sm:text-sm text-muted-foreground truncate max-w-[120px] sm:max-w-none">{clienteName}</span>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </div>
@@ -164,30 +175,30 @@ const Welcome = () => {
             <div className="grid md:grid-cols-2 gap-6 mt-12">
             <button
               onClick={() => navigate("/catalog/prendas")}
-              className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary transition-all duration-300 p-12 bg-card"
+              className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary active:scale-95 transition-all duration-300 p-8 sm:p-12 bg-card touch-manipulation"
             >
-              <div className="flex flex-col items-center gap-6">
-                <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Shirt className="w-12 h-12" />
+              <div className="flex flex-col items-center gap-4 sm:gap-6">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Shirt className="w-8 h-8 sm:w-12 sm:h-12" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Prendas</h3>
-                  <p className="text-muted-foreground mt-2">Ropa deportiva y casual</p>
+                  <h3 className="text-xl sm:text-2xl font-bold">Prendas</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-2">Ropa deportiva y casual</p>
                 </div>
               </div>
             </button>
 
             <button
               onClick={() => navigate("/catalog/calzados")}
-              className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary transition-all duration-300 p-12 bg-card"
+              className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary active:scale-95 transition-all duration-300 p-8 sm:p-12 bg-card touch-manipulation"
             >
-              <div className="flex flex-col items-center gap-6">
-                <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <ShoppingBag className="w-12 h-12" />
+              <div className="flex flex-col items-center gap-4 sm:gap-6">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <ShoppingBag className="w-8 h-8 sm:w-12 sm:h-12" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Calzados</h3>
-                  <p className="text-muted-foreground mt-2">Zapatillas y accesorios</p>
+                  <h3 className="text-xl sm:text-2xl font-bold">Calzados</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-2">Zapatillas y accesorios</p>
                 </div>
               </div>
             </button>
