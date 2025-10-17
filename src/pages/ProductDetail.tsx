@@ -201,7 +201,7 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/catalog")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/welcome")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </div>
