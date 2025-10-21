@@ -157,7 +157,7 @@ const Cart = () => {
         description: "Tu pedido ha sido registrado exitosamente",
       });
 
-      navigate("/welcome");
+      navigate("/catalog");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -255,7 +255,7 @@ const Cart = () => {
         {cartItems.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">No hay productos en tu pedido</p>
-            <Button onClick={() => navigate("/welcome")} className="mt-4">
+            <Button onClick={() => navigate("/catalog")} className="mt-4">
               Volver al inicio
             </Button>
           </Card>

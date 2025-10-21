@@ -24,7 +24,7 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/welcome");
+        navigate("/catalog");
       }
     };
     checkSession();
@@ -98,7 +98,7 @@ const Auth = () => {
           title: "Bienvenido",
           description: "Acceso exitoso",
         });
-        navigate("/welcome");
+        navigate("/catalog");
       }
     } catch (error: any) {
       toast({
