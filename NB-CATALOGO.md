@@ -1,6 +1,6 @@
-# 🏃‍♂️ NEW BALANCE PREVENTA APP
+# 🏢 GESTOR DE PREVENTAS OPTIMA - GUATA PORA S.A
 
-Una aplicación web desarrollada en **React + Vite + Tailwind CSS**, con **Supabase** como backend, diseñada para la gestión de preventas de productos NEW BALANCE con un sistema de roles jerárquico.
+Una aplicación web desarrollada en **React + Vite + Tailwind CSS**, con **Supabase** como backend, diseñada para la gestión de preventas de múltiples marcas con un sistema de roles jerárquico.
 
 Este README proporciona instrucciones completas para levantar el proyecto, estructura del sistema, reglas de negocio y comportamiento esperado de la aplicación.
 
@@ -13,6 +13,12 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 - **Backend**: Supabase (Auth + Database + Storage)
 - **Exportables**: Archivos Excel generados desde el frontend
 - **Estado**: React Query + localStorage
+- **Routing**: React Router v6 con navegación dinámica
+- **UI Components**: shadcn/ui con componentes accesibles
+- **Database**: PostgreSQL con Row Level Security (RLS)
+- **Authentication**: Supabase Auth con verificación automática
+- **State Management**: React Query para cache y sincronización
+- **Icons**: Lucide React para iconografía consistente
 
 ---
 
@@ -21,8 +27,8 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 ### 🔴 **SUPERADMIN** (Máximo nivel de acceso)
 **Privilegios completos del sistema:**
 - ✅ **Gestión de Usuarios**: Crear, editar, eliminar Admins y Clientes
-- ✅ **Gestión de Marcas**: Crear, editar, eliminar marcas
-- ✅ **Gestión de Productos**: CRUD completo de productos
+- ✅ **Gestión de Marcas**: Crear, editar, eliminar marcas (Nike, Adidas, Puma, etc.)
+- ✅ **Gestión de Productos**: CRUD completo de productos de todas las marcas
 - ✅ **Gestión de Pedidos**: Ver, editar, eliminar todos los pedidos
 - ✅ **Reportes**: Acceso a todos los reportes del sistema
 - ✅ **Configuración**: Configurar parámetros globales del sistema
@@ -38,7 +44,7 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 
 ### 🟡 **ADMIN** (Gerente de Marca)
 **Privilegios limitados a su marca asignada:**
-- ✅ **Gestión de Productos**: Crear, editar, eliminar productos de su marca
+- ✅ **Gestión de Productos**: Crear, editar, eliminar productos de su marca asignada
 - ✅ **Gestión de Clientes**: Crear, editar, eliminar clientes asignados
 - ✅ **Gestión de Pedidos**: Autorizar, modificar, eliminar pedidos de sus clientes
 - ✅ **Reportes**: Reportes de su marca y clientes asignados
@@ -53,7 +59,7 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 
 ### 🟢 **CLIENTE** (Usuario final)
 **Privilegios básicos de compra:**
-- ✅ **Catálogo**: Ver productos disponibles según su tier
+- ✅ **Catálogo**: Ver productos disponibles según su tier y marca asignada
 - ✅ **Pedidos**: Crear, ver, modificar sus propios pedidos
 - ✅ **Historial**: Ver historial de pedidos realizados
 - ❌ **No puede**: Gestionar productos, ver otros clientes, acceder a reportes
@@ -73,13 +79,13 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 
 ### **Registro de Admins:**
 - Solo el **Superadmin** puede crear nuevos admins
-- Se asigna una marca específica al admin
+- Se asigna una marca específica al admin (Nike, Adidas, Puma, etc.)
 - Se definen los clientes que puede gestionar
 
 ### **Registro de Clientes:**
-- Los **Admins** pueden crear clientes de su marca
-- Se asigna un tier (A, B, C, D) y vendedor
-- Acceso limitado al catálogo según su tier
+- Los **Admins** pueden crear clientes de su marca asignada
+- Se asigna un tier (1, 2, 3, 4) y vendedor
+- Acceso limitado al catálogo según su tier y marca
 
 ---
 
@@ -97,19 +103,19 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 
 ### 🟡 **Flujo ADMIN**
 1. **Login** con credenciales de admin
-2. **Dashboard** con métricas de su marca
-3. **Gestión de Productos**: CRUD de productos de su marca
+2. **Dashboard** con métricas de su marca asignada
+3. **Gestión de Productos**: CRUD de productos de su marca (Nike, Adidas, etc.)
 4. **Gestión de Clientes**: Crear/editar clientes asignados
 5. **Gestión de Pedidos**: Autorizar/modificar pedidos de sus clientes
 6. **Reportes**: Reportes de su marca y clientes
 
 ### 🟢 **Flujo CLIENTE**
 1. **Login** mediante selector de cliente predefinido
-2. **Catálogo** con productos disponibles según su tier
+2. **Catálogo** con productos disponibles según su tier y marca asignada
 3. **Selección de rubro**: `Prendas` o `Calzados`
-4. **Visualización del catálogo** (filtrado por Tier)
+4. **Visualización del catálogo** (filtrado por Tier y Marca)
 5. **Selección de producto**:
-   - Imagen, SKU, precio USD, línea, categoría, género
+   - Imagen, SKU, precio USD, línea, categoría, género, marca
    - Si es "Game Plan" → recuadro dorado
    - Selección de curva: predefinida o personalizada
    - Cantidad de curvas a aplicar
@@ -137,8 +143,8 @@ Cada producto agregado al pedido incluye:
 - Subtotal del producto
 
 ### Archivo Excel generado para el Cliente:
-| Cliente | Vendedor | SKU | Nombre | Género | Línea | Categoría | Talla | Cantidad | Precio | Subtotal |
-|--------|----------|-----|--------|--------|-------|-----------|-------|----------|--------|----------|
+| Cliente | Vendedor | Marca | SKU | Nombre | Género | Línea | Categoría | Talla | Cantidad | Precio | Subtotal |
+|--------|----------|-------|-----|--------|--------|-------|-----------|-------|----------|--------|----------|
 
 ### Campos ocultos solo para ADMIN:
 - `XFD`: Fecha en que el producto está disponible en fábrica
@@ -167,6 +173,7 @@ Cada producto agregado al pedido incluye:
 ### **Formato Excel para carga masiva:**
 | SKU | Nombre Producto | Género | Línea | Categoría | Tier | Game Plan | Imagen URL | Precio | Marca | XFD | Fecha Despacho |
 |-----|------------------|--------|-------|-----------|------|------------|-------------|--------|-------|-----|-----------------|
+*Nota: El campo "Marca" puede ser Nike, Adidas, Puma, New Balance, etc.*
 
 ---
 
@@ -187,9 +194,9 @@ Ejemplo para `Mens`:
 
 ### 🔴 **SUPERADMIN - Reportes Globales**
 - **Dashboard ejecutivo**: Métricas globales del sistema
-- **Reporte por marca**: Análisis de performance por marca
+- **Reporte por marca**: Análisis de performance por marca (Nike, Adidas, Puma, etc.)
 - **Reporte de usuarios**: Actividad de admins y clientes
-- **Reporte de productos**: Inventario global y movimientos
+- **Reporte de productos**: Inventario global y movimientos por marca
 - **Reporte financiero**: Ingresos por marca y período
 - **Exportación**: Todos los reportes exportables a Excel
 
@@ -207,9 +214,9 @@ Ejemplo para `Mens`:
 - **Exportación**: Sus propios pedidos exportables a Excel
 
 ### **Formato de Reportes:**
-- **Por pedido individual**: Cliente, vendedor, productos, cantidades, totales
+- **Por pedido individual**: Cliente, vendedor, marca, productos, cantidades, totales
 - **Consolidado**: Agrupado por SKU, género, talla, tier, marca
-- **Incluye campos**: XFD, Fecha de despacho, estado del pedido
+- **Incluye campos**: XFD, Fecha de despacho, estado del pedido, marca
 
 ---
 
@@ -229,19 +236,42 @@ npm run dev
 
 ---
 
-## 📁 Estructura de Carpetas Sugerida
+## 📁 Estructura de Archivos Actual
 
 ```
 src/
-├── assets/               # Imágenes y logos
-├── components/           # Componentes reutilizables (Header, Card, etc.)
-├── features/             # Módulos de negocio: login, catalogo, carrito
-├── hooks/                # Custom Hooks
-├── pages/                # Vistas principales: Home, Login, Pedido
-├── services/             # Conexión Supabase y lógica API
-├── utils/                # Helpers, formateadores, validadores
-└── App.jsx               # Enrutamiento principal
+├── components/
+│   ├── ui/               # Componentes shadcn/ui
+│   └── Layout.tsx        # Layout persistente con sidebar
+├── hooks/
+│   ├── use-toast.ts      # Hook para notificaciones
+│   └── use-mobile.tsx    # Hook para detección móvil
+├── integrations/
+│   └── supabase/
+│       ├── client.ts     # Cliente Supabase
+│       └── types.ts      # Tipos TypeScript
+├── pages/
+│   ├── Login.tsx         # Página de login
+│   ├── Catalog.tsx       # Catálogo principal
+│   ├── Dashboard.tsx     # Dashboard ejecutivo
+│   ├── Users.tsx         # Gestión de usuarios
+│   ├── Marcas.tsx        # Gestión de marcas
+│   ├── Productos.tsx     # Gestión de productos
+│   ├── Clientes.tsx      # Gestión de clientes
+│   ├── Pedidos.tsx       # Gestión de pedidos
+│   └── ...               # Otras páginas
+├── lib/
+│   └── utils.ts          # Utilidades generales
+├── App.tsx               # Enrutamiento principal
+└── main.tsx              # Punto de entrada
 ```
+
+### **Componentes Clave Implementados**
+- **Layout.tsx**: Sidebar persistente con navegación por roles
+- **Dashboard.tsx**: Métricas ejecutivas para Superadmin
+- **Users.tsx**: CRUD completo de usuarios con roles
+- **Marcas.tsx**: Gestión de marcas del sistema
+- **Catalog.tsx**: Catálogo simplificado sin tabs
 
 ---
 
@@ -253,12 +283,15 @@ src/
 - [x] Mockup visual del proceso de compra
 - [x] Implementar sidebar y navegación básica
 
-### **Fase 2 - Sistema de Roles (En desarrollo)**
-- [ ] **Autenticación por roles**: Superadmin, Admin, Cliente
-- [ ] **Dashboard diferenciado** por rol
-- [ ] **Gestión de usuarios**: CRUD de admins y clientes
-- [ ] **Gestión de marcas**: CRUD de marcas del sistema
-- [ ] **Sidebar dinámico** según rol del usuario
+### **Fase 2 - Sistema de Roles (✅ COMPLETADO)**
+- [x] **Autenticación por roles**: Superadmin, Admin, Cliente
+- [x] **Dashboard diferenciado** por rol
+- [x] **Gestión de usuarios**: CRUD de admins y clientes
+- [x] **Gestión de marcas**: CRUD de marcas del sistema
+- [x] **Sidebar dinámico** según rol del usuario
+- [x] **Layout persistente** con páginas dinámicas
+- [x] **Avatar de usuario** con dropdown de configuraciones
+- [x] **Verificación automática** de usuarios creados
 
 ### **Fase 3 - Gestión de Productos**
 - [ ] **CRUD de productos** con restricciones por rol
@@ -286,6 +319,56 @@ src/
 
 ---
 
+## 🚀 Features Implementadas
+
+### **✅ Sistema de Autenticación Completo**
+- **Login automático**: Redirección inteligente según rol
+- **Verificación automática**: Usuarios creados automáticamente verificados
+- **Gestión de sesiones**: Persistencia de sesión con localStorage
+- **Protección de rutas**: Acceso restringido por rol
+
+### **✅ Layout y Navegación Avanzada**
+- **Sidebar persistente**: Navegación fija con contenido dinámico
+- **Layout responsivo**: Ocupa todo el espacio disponible
+- **Navegación por roles**: Sidebar adaptativo según permisos
+- **Avatar de usuario**: Dropdown con configuraciones de cuenta
+- **React Router**: Enrutamiento dinámico sin recargas
+
+### **✅ Gestión de Usuarios (Superadmin)**
+- **CRUD completo**: Crear, editar, eliminar usuarios
+- **Roles múltiples**: Superadmin, Admin, Cliente
+- **Campos personalizados**: Nombre, Tier (1-4), asignaciones
+- **Validación automática**: Verificación de email automática
+- **Funciones SQL**: Operaciones directas en base de datos
+
+### **✅ Gestión de Marcas (Superadmin)**
+- **CRUD de marcas**: Crear, editar, eliminar marcas
+- **Búsqueda y filtros**: Sistema de búsqueda avanzada
+- **Validación de datos**: Campos únicos y requeridos
+- **Interfaz intuitiva**: Formularios con validación en tiempo real
+
+### **✅ Dashboard Ejecutivo (Superadmin)**
+- **Métricas globales**: Estadísticas del sistema completo
+- **Tarjetas informativas**: Usuarios, marcas, productos, pedidos
+- **Acciones rápidas**: Navegación directa a secciones
+- **Estado del sistema**: Monitoreo en tiempo real
+
+### **✅ Sistema de Roles Robusto**
+- **Superadmin**: Acceso total al sistema
+- **Admin**: Gestión limitada a su marca
+- **Cliente**: Acceso solo al catálogo
+- **Políticas RLS**: Seguridad a nivel de fila en Supabase
+- **Funciones SQL**: Operaciones seguras con SECURITY DEFINER
+
+### **✅ Interfaz de Usuario Optimizada**
+- **shadcn/ui**: Componentes modernos y accesibles
+- **Tailwind CSS**: Estilos consistentes y responsivos
+- **Estados de carga**: Spinners y feedback visual
+- **Mensajes de error**: Toast notifications informativas
+- **Navegación fluida**: Transiciones suaves entre páginas
+
+---
+
 ## 🗄️ Configuración de Base de Datos
 
 ### **Supabase Configuration**
@@ -301,20 +384,27 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 ```
 
 ### **Tablas Principales**
-- `user_roles` - Sistema de roles (superadmin, admin, cliente)
-- `clientes` - Gestión de clientes con tiers
-- `vendedores` - Gestión de vendedores
-- `productos` - Catálogo de productos
-- `marcas` - Gestión de marcas
-- `pedidos` - Órdenes de compra
-- `items_pedido` - Items de cada pedido
-- `curvas` - Curvas de tallas
+- `user_roles` - Sistema de roles (superadmin, admin, cliente) ✅
+- `clientes` - Gestión de clientes con tiers ✅
+- `vendedores` - Gestión de vendedores ✅
+- `productos` - Catálogo de productos ✅
+- `marcas` - Gestión de marcas ✅
+- `tiers` - Sistema de tiers (1-4) ✅
+- `pedidos` - Órdenes de compra ✅
+- `items_pedido` - Items de cada pedido ✅
+- `curvas` - Curvas de tallas ✅
 
 ### **Migraciones Aplicadas**
 - ✅ Tablas principales creadas
 - ✅ Políticas RLS configuradas
 - ✅ Funciones SQL implementadas
 - ✅ Datos iniciales insertados
+- ✅ Sistema de roles completo
+- ✅ Gestión de usuarios con verificación automática
+- ✅ Gestión de marcas con CRUD completo
+- ✅ Sistema de tiers (1-4) implementado
+- ✅ Funciones de seguridad (is_superadmin, is_admin, is_client)
+- ✅ Funciones de gestión (create_user_with_role, get_users_with_roles, delete_user)
 
 ---
 

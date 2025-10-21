@@ -233,27 +233,25 @@ const Marcas = () => {
   );
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+    return <div className="min-h-screen flex items-center justify-center"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Gestión de Marcas</h1>
-              <p className="text-muted-foreground">Administra las marcas del sistema</p>
-            </div>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Marca
-            </Button>
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Gestión de Marcas</h1>
+            <p className="text-muted-foreground">Administra las marcas del sistema</p>
           </div>
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Crear Marca
+          </Button>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <div className="flex-1 overflow-auto p-6">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -451,7 +449,7 @@ const Marcas = () => {
             </Card>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

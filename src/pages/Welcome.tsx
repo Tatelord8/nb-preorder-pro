@@ -24,7 +24,7 @@ const Welcome = () => {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">NEW BALANCE</h1>
-        <p className="text-xl text-muted-foreground">Cargando catálogo...</p>
+        <p className="text-xl text-muted-foreground"></p>
       </div>
     </div>
   );

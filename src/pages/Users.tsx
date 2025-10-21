@@ -33,6 +33,9 @@ interface User {
   user_id: string;
   email: string;
   role: string;
+  nombre?: string;
+  tier_id?: number;
+  tier_nombre?: string;
   created_at: string;
   clientes?: {
     nombre: string;
@@ -49,11 +52,19 @@ interface Marca {
   descripcion?: string;
 }
 
+interface Tier {
+  id: number;
+  numero: number;
+  nombre: string;
+  descripcion?: string;
+}
+
 const Users = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
@@ -63,15 +74,16 @@ const Users = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    nombre: "",
     role: "cliente",
-    cliente_id: "",
-    marca_id: "",
+    tier_id: "",
   });
 
   useEffect(() => {
     checkAuth();
     loadUsers();
     loadMarcas();
+    loadTiers();
   }, []);
 
   const checkAuth = async () => {
@@ -179,8 +191,47 @@ const Users = () => {
     }
   };
 
+  const loadTiers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tiers" as any)
+        .select("*")
+        .order("numero");
+
+      if (error) {
+        console.error("Error loading tiers:", error);
+        setTiers([]);
+        return;
+      }
+
+      setTiers((data as any) || []);
+    } catch (error) {
+      console.error("Error loading tiers:", error);
+      setTiers([]);
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validar campos requeridos
+    if (!formData.nombre || formData.nombre.trim() === "") {
+      toast({
+        title: "Error",
+        description: "El nombre es requerido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.tier_id || formData.tier_id === "") {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar un tier",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Usar función SQL para crear usuario
@@ -188,8 +239,10 @@ const Users = () => {
         user_email: formData.email,
         user_password: formData.password,
         user_role: formData.role,
-        cliente_id: formData.role === "cliente" ? formData.cliente_id : null,
-        marca_id: formData.role === "admin" ? formData.marca_id : null,
+        user_nombre: formData.nombre,
+        user_tier_id: formData.tier_id ? parseInt(formData.tier_id) : null,
+        user_cliente_id: null,
+        user_marca_id: null,
       });
 
       if (error) throw error;
@@ -203,9 +256,9 @@ const Users = () => {
       setFormData({
         email: "",
         password: "",
+        nombre: "",
         role: "cliente",
-        cliente_id: "",
-        marca_id: "",
+        tier_id: "",
       });
       setShowCreateForm(false);
       loadUsers();
@@ -222,17 +275,16 @@ const Users = () => {
     if (!confirm("¿Estás seguro de que quieres eliminar este usuario?")) return;
 
     try {
-      // Delete user role first
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+      // Usar función SQL para eliminar usuario
+      const { data, error } = await supabase.rpc('delete_user' as any, {
+        user_id_to_delete: userId
+      });
 
-      if (roleError) throw roleError;
+      if (error) throw error;
 
-      // Delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) throw authError;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Error al eliminar usuario');
+      }
 
       toast({
         title: "Usuario eliminado",
@@ -265,38 +317,33 @@ const Users = () => {
 
     return (
       <Badge variant={variants[role as keyof typeof variants] || "outline"}>
-        {role.toUpperCase()}
+        {role}
       </Badge>
     );
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+    return <div className="min-h-screen flex items-center justify-center"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
-              <p className="text-muted-foreground">Administra usuarios del sistema</p>
-            </div>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Usuario
-            </Button>
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Gestión de Usuarios</h1>
+            <p className="text-muted-foreground">Administra usuarios del sistema</p>
           </div>
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Crear Usuario
+          </Button>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="usuarios" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-            <TabsTrigger value="marcas">Marcas</TabsTrigger>
-          </TabsList>
+          
 
           <TabsContent value="usuarios">
             <Card className="p-6">
@@ -330,7 +377,9 @@ const Users = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
+                    <TableHead>Nombre</TableHead>
                     <TableHead>Rol</TableHead>
+                    <TableHead>Tier</TableHead>
                     <TableHead>Asignación</TableHead>
                     <TableHead>Fecha Creación</TableHead>
                     <TableHead>Acciones</TableHead>
@@ -340,7 +389,15 @@ const Users = () => {
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.email}</TableCell>
+                      <TableCell>{user.nombre || "Sin nombre"}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>
+                        {user.tier_nombre ? (
+                          <Badge variant="outline">{user.tier_nombre}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">Sin tier</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {user.role === "cliente" && user.clientes && (
                           <div>
@@ -382,19 +439,6 @@ const Users = () => {
               </Table>
             </Card>
           </TabsContent>
-
-          <TabsContent value="marcas">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Gestión de Marcas</h2>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Marca
-                </Button>
-              </div>
-              <p className="text-muted-foreground">Funcionalidad de marcas en desarrollo...</p>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Create User Modal */}
@@ -426,6 +470,18 @@ const Users = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre</Label>
+                  <Input
+                    id="nombre"
+                    type="text"
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    placeholder="Nombre completo del usuario"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="role">Rol</Label>
                   <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
                     <SelectTrigger>
@@ -434,41 +490,28 @@ const Users = () => {
                     <SelectContent>
                       <SelectItem value="cliente">Cliente</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="superadmin">Superadmin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {formData.role === "cliente" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="cliente_id">Cliente</Label>
-                    <Select value={formData.cliente_id} onValueChange={(value) => setFormData({ ...formData, cliente_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* Load clientes here */}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="tier_id">Tier</Label>
+                  <Select value={formData.tier_id} onValueChange={(value) => setFormData({ ...formData, tier_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiers.map((tier) => (
+                        <SelectItem key={tier.id} value={tier.id.toString()}>
+                          {tier.nombre} - {tier.descripcion}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {formData.role === "admin" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="marca_id">Marca</Label>
-                    <Select value={formData.marca_id} onValueChange={(value) => setFormData({ ...formData, marca_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar marca" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {marcas.map((marca) => (
-                          <SelectItem key={marca.id} value={marca.id}>
-                            {marca.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
@@ -480,7 +523,7 @@ const Users = () => {
             </Card>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

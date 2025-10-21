@@ -179,21 +179,17 @@ const Dashboard = () => {
   ];
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+    return <div className="min-h-screen flex items-center justify-center"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard Ejecutivo</h1>
-            <p className="text-muted-foreground">Vista general del sistema</p>
-          </div>
-        </div>
-      </header>
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b">
+        <h1 className="text-3xl font-bold mb-2">Dashboard Ejecutivo</h1>
+        <p className="text-muted-foreground">Vista general del sistema</p>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map((stat, index) => {
             const Icon = stat.icon;
@@ -267,7 +263,7 @@ const Dashboard = () => {
             </div>
           </Card>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

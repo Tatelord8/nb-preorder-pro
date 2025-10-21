@@ -1,35 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarFooter, 
-  SidebarGroup, 
-  SidebarGroupContent, 
-  SidebarGroupLabel, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuButton, 
-  SidebarMenuItem, 
-  SidebarTrigger 
-} from "@/components/ui/sidebar";
-import { 
-  ShoppingCart, 
   ArrowLeft, 
   Check, 
   Search, 
   Shirt, 
-  ShoppingBag, 
-  LogOut, 
-  Home,
-  Package,
-  Users,
-  Tag
+  ShoppingBag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,49 +28,16 @@ interface Producto {
 
 const Catalog = () => {
   const { categoria } = useParams<{ categoria: string }>();
-  const navigate = useNavigate();
+  const { toast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [clienteName, setClienteName] = useState("");
-  const [userRole, setUserRole] = useState<string>("");
-  const { toast } = useToast();
+  const [cart, setCart] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
-    checkAuth();
     loadCart();
-  }, []);
-
-  useEffect(() => {
-    if (!loading) {
-      loadProductos();
-    }
-  }, [categoria, loading]);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-
-    // Get user role and info
-    const { data: userRoleData } = await supabase
-      .from("user_roles")
-      .select("role, cliente_id, clientes(nombre)")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (userRoleData) {
-      setUserRole(userRoleData.role);
-      if (userRoleData.clientes) {
-        setClienteName((userRoleData.clientes as any).nombre);
-      }
-    }
-
-    setLoading(false);
-  };
+    loadProductos();
+  }, [categoria]);
 
   const loadCart = () => {
     const savedCart = localStorage.getItem("cart");
@@ -99,292 +47,181 @@ const Catalog = () => {
   };
 
   const loadProductos = async () => {
-    const { data, error } = await supabase
-      .from("productos")
-      .select("*")
-      .eq("categoria", categoria)
-      .order("nombre");
+    try {
+      setLoading(true);
+      let query = supabase.from("productos").select("*");
 
-    if (error) {
+      if (categoria) {
+        query = query.eq("categoria", categoria);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los productos",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setProductos(data || []);
+    } catch (error) {
+      console.error("Error loading productos:", error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los productos",
+        description: "Error al cargar los productos",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setProductos(data || []);
   };
 
-  const isInCart = (productId: string) => cart.includes(productId);
+  const addToCart = (producto: Producto) => {
+    const newCart = { ...cart };
+    newCart[producto.id] = (newCart[producto.id] || 0) + 1;
+    setCart(newCart);
+    localStorage.setItem("cart", JSON.stringify(newCart));
+    
+    toast({
+      title: "Producto agregado",
+      description: `${producto.nombre} agregado al pedido`,
+    });
+  };
 
-  const filteredProductos = productos.filter((producto) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
+  const removeFromCart = (producto: Producto) => {
+    const newCart = { ...cart };
+    if (newCart[producto.id] > 1) {
+      newCart[producto.id] -= 1;
+    } else {
+      delete newCart[producto.id];
+    }
+    setCart(newCart);
+    localStorage.setItem("cart", JSON.stringify(newCart));
+  };
+
+  const getCartCount = (productoId: string) => {
+    return cart[productoId] || 0;
+  };
+
+  const filteredProductos = productos.filter(producto =>
+    producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    producto.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
     return (
-      producto.sku.toLowerCase().includes(search) ||
-      producto.nombre.toLowerCase().includes(search)
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p></p>
+        </div>
+      </div>
     );
-  });
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
+  }
 
   return (
-    <div className="flex min-h-screen w-full">
-      <Sidebar>
-        <SidebarHeader>
-          <div className="flex items-center gap-2 px-2 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
-              <Package className="h-4 w-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">NEW BALANCE</span>
-              <span className="truncate text-xs">S1 26 Pre Line</span>
-            </div>
-          </div>
-        </SidebarHeader>
-        
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Navegación</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {/* Superadmin navigation */}
-                {userRole === "superadmin" && (
-                  <>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={() => navigate("/dashboard")}
-                      >
-                        <Home className="h-4 w-4" />
-                        <span>Dashboard</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={() => navigate("/users")}
-                      >
-                        <Users className="h-4 w-4" />
-                        <span>Usuarios</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={() => navigate("/marcas")}
-                      >
-                        <Tag className="h-4 w-4" />
-                        <span>Marcas</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </>
-                )}
-                
-                {/* Common navigation for all users */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate("/catalog")}
-                    isActive={!categoria}
-                  >
-                    <Home className="h-4 w-4" />
-                    <span>Catálogo</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate("/catalog/prendas")}
-                    isActive={categoria === "prendas"}
-                  >
-                    <Shirt className="h-4 w-4" />
-                    <span>Prendas</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate("/catalog/calzados")}
-                    isActive={categoria === "calzados"}
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    <span>Calzados</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Buscar productos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
 
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => navigate("/cart")}>
-                <ShoppingCart className="h-4 w-4" />
-                <span>Mi Pedido ({cart.length})</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-                <span>Cerrar Sesión</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      </Sidebar>
-
-      <div className="flex-1 flex flex-col">
-        <header className="border-b sticky top-0 bg-background z-10">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
-                <div>
-                  <h1 className="text-2xl font-bold">NEW BALANCE</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {categoria ? categoria.charAt(0).toUpperCase() + categoria.slice(1) : "Catálogo"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{clienteName}</span>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="container mx-auto px-4 py-8 flex-1">
-          {!categoria ? (
-            // Página de inicio del catálogo
-            <div className="max-w-4xl mx-auto text-center space-y-12">
-              <div className="space-y-4">
-                <h2 className="text-5xl font-bold tracking-tight">S1 26 PRE LINE</h2>
-                <p className="text-xl text-muted-foreground">Selecciona una categoría para comenzar</p>
-              </div>
-
-              <div className="max-w-md mx-auto">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar por SKU o nombre..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6 mt-12">
-                <button
-                  onClick={() => navigate("/catalog/prendas")}
-                  className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary active:scale-95 transition-all duration-300 p-8 sm:p-12 bg-card touch-manipulation"
-                >
-                  <div className="flex flex-col items-center gap-4 sm:gap-6">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Shirt className="w-8 h-8 sm:w-12 sm:h-12" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-bold">Prendas</h3>
-                      <p className="text-sm sm:text-base text-muted-foreground mt-2">Ropa deportiva y casual</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => navigate("/catalog/calzados")}
-                  className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary active:scale-95 transition-all duration-300 p-8 sm:p-12 bg-card touch-manipulation"
-                >
-                  <div className="flex flex-col items-center gap-4 sm:gap-6">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <ShoppingBag className="w-8 h-8 sm:w-12 sm:h-12" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-bold">Calzados</h3>
-                      <p className="text-sm sm:text-base text-muted-foreground mt-2">Zapatillas y accesorios</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          ) : (
-            // Página de productos de categoría
-            <>
-              <div className="mb-6">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar por SKU o nombre..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              {loading ? (
-                <div className="text-center py-12">Cargando productos...</div>
-              ) : filteredProductos.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No se encontraron productos
-                </div>
+      <div className="flex-1 overflow-auto p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredProductos.map((producto) => (
+          <Card key={producto.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="aspect-square bg-muted flex items-center justify-center">
+              {producto.imagen_url ? (
+                <img
+                  src={producto.imagen_url}
+                  alt={producto.nombre}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredProductos.map((producto) => (
-                    <Card
-                      key={producto.id}
-                      className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg relative ${
-                        producto.game_plan ? "ring-2 ring-gameplan" : ""
-                      }`}
-                      onClick={() => navigate(`/product/${producto.id}`)}
-                    >
-                      {isInCart(producto.id) && (
-                        <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full p-2">
-                          <Check className="h-4 w-4" />
-                        </div>
-                      )}
-                      
-                      {producto.game_plan && (
-                        <Badge className="absolute top-2 left-2 z-10 bg-gameplan text-gameplan-foreground">
-                          GAME PLAN
-                        </Badge>
-                      )}
-
-                      <div className="aspect-square bg-muted">
-                        {producto.imagen_url ? (
-                          <img
-                            src={producto.imagen_url}
-                            alt={producto.nombre}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                            Sin imagen
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-semibold line-clamp-2">{producto.nombre}</h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">{producto.linea}</Badge>
-                          <Badge variant="outline">{producto.categoria}</Badge>
-                          <Badge variant="outline">{producto.genero}</Badge>
-                        </div>
-                        <p className="text-lg font-bold">USD ${producto.precio_usd}</p>
-                      </div>
-                    </Card>
-                  ))}
+                <div className="text-muted-foreground text-center p-4">
+                  <Shirt className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">Sin imagen</p>
                 </div>
               )}
-            </>
-          )}
-        </main>
+            </div>
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-sm line-clamp-2">{producto.nombre}</h3>
+                  <p className="text-xs text-muted-foreground">SKU: {producto.sku}</p>
+                </div>
+                {producto.game_plan && (
+                  <Badge variant="secondary" className="text-xs">
+                    Game Plan
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="space-y-1 mb-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Línea:</span> {producto.linea}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Género:</span> {producto.genero}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Categoría:</span> {producto.categoria}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-lg font-bold">
+                  ${producto.precio_usd} USD
+                </div>
+                <div className="flex items-center gap-2">
+                  {getCartCount(producto.id) > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeFromCart(producto)}
+                    >
+                      -
+                    </Button>
+                  )}
+                  {getCartCount(producto.id) > 0 && (
+                    <span className="text-sm font-medium min-w-[20px] text-center">
+                      {getCartCount(producto.id)}
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => addToCart(producto)}
+                    className="flex items-center gap-1"
+                  >
+                    <Check className="h-3 w-3" />
+                    {getCartCount(producto.id) > 0 ? "Agregar" : "Agregar"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+        </div>
+
+        {filteredProductos.length === 0 && (
+          <div className="text-center py-12">
+            <Shirt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No se encontraron productos</h3>
+            <p className="text-muted-foreground">
+              {searchTerm ? "Intenta con otros términos de búsqueda" : "No hay productos disponibles en esta categoría"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

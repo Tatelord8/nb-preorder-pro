@@ -1,8 +1,8 @@
-# NEW BALANCE Pre-Order System
+# Gestor de Preventas Optima - Guata Pora S.A
 
 ## Project Overview
 
-Sistema de pre-órdenes para NEW BALANCE con gestión de roles, catálogo de productos y sistema de pedidos.
+Sistema de gestión de preventas para múltiples marcas (Nike, Adidas, Puma, New Balance, etc.) con gestión de roles, catálogo de productos y sistema de pedidos.
 
 **URL**: https://lovable.dev/projects/96dc87cf-1f81-46be-9930-8390137cb9bb
 
@@ -25,7 +25,7 @@ VITE_SUPABASE_URL=https://oszmlmscckrbfnjrveet.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zem1sbXNjY2tyYmZuanJ2ZWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyNjEzNjMsImV4cCI6MjA3NTgzNzM2M30.bs1pWdYQozaxLAeo2HhbTJSJQOPOVttTUDhBYb1Bo98
 
 # Project Configuration
-VITE_APP_NAME=NEW BALANCE Pre-Order System
+VITE_APP_NAME=Gestor de Preventas Optima - Guata Pora S.A
 VITE_APP_VERSION=1.0.0
 ```
 

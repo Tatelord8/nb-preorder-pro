@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import Layout from "@/components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Welcome from "./pages/Welcome";
@@ -14,6 +15,9 @@ import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Marcas from "./pages/Marcas";
+import Productos from "./pages/Productos";
+import Clientes from "./pages/Clientes";
+import Pedidos from "./pages/Pedidos";
 import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
@@ -34,43 +38,64 @@ const App = () => (
           <Route path="/manual-setup" element={<ManualSetup />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/welcome" element={<Welcome />} />
-          <Route path="/catalog" element={
-            <SidebarProvider>
-              <SidebarInset>
-                <Catalog />
-              </SidebarInset>
-            </SidebarProvider>
-          } />
-          <Route path="/catalog/:categoria" element={
-            <SidebarProvider>
-              <SidebarInset>
-                <Catalog />
-              </SidebarInset>
-            </SidebarProvider>
-          } />
+              <Route path="/catalog" element={
+                <SidebarProvider>
+                  <Layout>
+                    <Catalog />
+                  </Layout>
+                </SidebarProvider>
+              } />
+              <Route path="/catalog/:categoria" element={
+                <SidebarProvider>
+                  <Layout>
+                    <Catalog />
+                  </Layout>
+                </SidebarProvider>
+              } />
+              <Route path="/productos" element={
+                <SidebarProvider>
+                  <Layout>
+                    <Productos />
+                  </Layout>
+                </SidebarProvider>
+              } />
+              <Route path="/clientes" element={
+                <SidebarProvider>
+                  <Layout>
+                    <Clientes />
+                  </Layout>
+                </SidebarProvider>
+              } />
+              <Route path="/pedidos" element={
+                <SidebarProvider>
+                  <Layout>
+                    <Pedidos />
+                  </Layout>
+                </SidebarProvider>
+              } />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/admin" element={<Admin />} />
           {/* Superadmin routes */}
           <Route path="/dashboard" element={
             <SidebarProvider>
-              <SidebarInset>
+              <Layout>
                 <Dashboard />
-              </SidebarInset>
+              </Layout>
             </SidebarProvider>
           } />
           <Route path="/users" element={
             <SidebarProvider>
-              <SidebarInset>
+              <Layout>
                 <Users />
-              </SidebarInset>
+              </Layout>
             </SidebarProvider>
           } />
           <Route path="/marcas" element={
             <SidebarProvider>
-              <SidebarInset>
+              <Layout>
                 <Marcas />
-              </SidebarInset>
+              </Layout>
             </SidebarProvider>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
