@@ -1,8 +1,46 @@
-# Welcome to your Lovable project
+# NEW BALANCE Pre-Order System
 
-## Project info
+## Project Overview
+
+Sistema de pre-órdenes para NEW BALANCE con gestión de roles, catálogo de productos y sistema de pedidos.
 
 **URL**: https://lovable.dev/projects/96dc87cf-1f81-46be-9930-8390137cb9bb
+
+## Database Configuration
+
+Este proyecto utiliza Supabase como backend con la siguiente configuración:
+
+- **URL**: `https://oszmlmscckrbfnjrveet.supabase.co`
+- **Database**: PostgreSQL con Row Level Security (RLS)
+- **Authentication**: Supabase Auth
+- **Storage**: Supabase Storage para imágenes
+
+## Environment Configuration
+
+Para configurar el proyecto localmente, crea un archivo `.env` en la raíz del proyecto:
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=https://oszmlmscckrbfnjrveet.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zem1sbXNjY2tyYmZuanJ2ZWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyNjEzNjMsImV4cCI6MjA3NTgzNzM2M30.bs1pWdYQozaxLAeo2HhbTJSJQOPOVttTUDhBYb1Bo98
+
+# Project Configuration
+VITE_APP_NAME=NEW BALANCE Pre-Order System
+VITE_APP_VERSION=1.0.0
+```
+
+## Database Schema
+
+El sistema incluye las siguientes tablas principales:
+
+- `user_roles` - Sistema de roles (superadmin, admin, cliente)
+- `clientes` - Gestión de clientes con tiers
+- `vendedores` - Gestión de vendedores
+- `productos` - Catálogo de productos
+- `marcas` - Gestión de marcas
+- `pedidos` - Órdenes de compra
+- `items_pedido` - Items de cada pedido
+- `curvas` - Curvas de tallas
 
 ## How can I edit this code?
 

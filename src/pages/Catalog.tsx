@@ -27,7 +27,9 @@ import {
   ShoppingBag, 
   LogOut, 
   Home,
-  Package
+  Package,
+  Users,
+  Tag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,6 +53,7 @@ const Catalog = () => {
   const [cart, setCart] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [clienteName, setClienteName] = useState("");
+  const [userRole, setUserRole] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -71,15 +74,18 @@ const Catalog = () => {
       return;
     }
 
-    // Get cliente name
-    const { data: userRole } = await supabase
+    // Get user role and info
+    const { data: userRoleData } = await supabase
       .from("user_roles")
-      .select("cliente_id, clientes(nombre)")
+      .select("role, cliente_id, clientes(nombre)")
       .eq("user_id", session.user.id)
       .single();
 
-    if (userRole?.clientes) {
-      setClienteName((userRole.clientes as any).nombre);
+    if (userRoleData) {
+      setUserRole(userRoleData.role);
+      if (userRoleData.clientes) {
+        setClienteName((userRoleData.clientes as any).nombre);
+      }
     }
 
     setLoading(false);
@@ -147,13 +153,44 @@ const Catalog = () => {
             <SidebarGroupLabel>Navegación</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                {/* Superadmin navigation */}
+                {userRole === "superadmin" && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => navigate("/dashboard")}
+                      >
+                        <Home className="h-4 w-4" />
+                        <span>Dashboard</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => navigate("/users")}
+                      >
+                        <Users className="h-4 w-4" />
+                        <span>Usuarios</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => navigate("/marcas")}
+                      >
+                        <Tag className="h-4 w-4" />
+                        <span>Marcas</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
+                
+                {/* Common navigation for all users */}
                 <SidebarMenuItem>
                   <SidebarMenuButton 
                     onClick={() => navigate("/catalog")}
                     isActive={!categoria}
                   >
                     <Home className="h-4 w-4" />
-                    <span>Inicio</span>
+                    <span>Catálogo</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

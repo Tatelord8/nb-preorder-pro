@@ -16,6 +16,7 @@ const Auth = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [selectedCliente, setSelectedCliente] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -24,11 +25,54 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/catalog");
+        // Get user role to redirect accordingly
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (userRole?.role === "superadmin") {
+          navigate("/dashboard");
+        } else {
+          navigate("/catalog");
+        }
       }
     };
-    checkSession();
 
+    // Check if superadmin exists
+    const checkSuperadmin = async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("role", "superadmin")
+        .limit(1);
+
+      if (error) {
+        console.error("Error checking superadmin:", error);
+        // Continue with normal flow if there's an error
+        setSetupComplete(true);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setSetupComplete(false);
+        // Show a brief message before redirecting
+        toast({
+          title: "Configuración requerida",
+          description: "No se encontró un superadmin. Redirigiendo a la configuración...",
+        });
+        setTimeout(() => {
+          navigate("/setup");
+        }, 1500);
+        return;
+      }
+
+      setSetupComplete(true);
+    };
+
+    checkSuperadmin();
+    checkSession();
     loadClientes();
   }, [navigate]);
 
@@ -94,11 +138,24 @@ const Auth = () => {
       }
 
       if (signInData.session) {
+        // Get user role to redirect accordingly
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", signInData.session.user.id)
+          .single();
+
         toast({
           title: "Bienvenido",
           description: "Acceso exitoso",
         });
-        navigate("/catalog");
+
+        // Redirect based on role
+        if (userRole?.role === "superadmin") {
+          navigate("/dashboard");
+        } else {
+          navigate("/catalog");
+        }
       }
     } catch (error: any) {
       toast({
@@ -117,6 +174,19 @@ const Auth = () => {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">NEW BALANCE</h1>
           <p className="text-muted-foreground">Pre Line S1 26</p>
+          {setupComplete ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+              <p className="text-sm text-green-800">
+                ✅ Sistema configurado correctamente. Puedes iniciar sesión.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+              <p className="text-sm text-blue-800">
+                ⚙️ Configurando sistema... Redirigiendo a la configuración inicial.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

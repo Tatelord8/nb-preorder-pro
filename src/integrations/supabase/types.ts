@@ -26,7 +26,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           nombre: string
-          tier: string
+          tier?: string
           vendedor_id?: string | null
         }
         Update: {
@@ -36,79 +36,55 @@ export type Database = {
           tier?: string
           vendedor_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "clientes_vendedor_id_fkey"
-            columns: ["vendedor_id"]
-            isOneToOne: false
-            referencedRelation: "vendedores"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       curvas: {
         Row: {
           created_at: string | null
-          genero: string
           id: string
           nombre: string
-          talles: Json
         }
         Insert: {
           created_at?: string | null
-          genero: string
           id?: string
           nombre: string
-          talles: Json
         }
         Update: {
           created_at?: string | null
-          genero?: string
           id?: string
           nombre?: string
-          talles?: Json
         }
         Relationships: []
       }
       items_pedido: {
         Row: {
-          cantidad_curvas: number
+          cantidad: number
           created_at: string | null
-          curva_id: string | null
           id: string
-          pedido_id: string
-          producto_id: string
+          pedido_id: string | null
+          precio_unitario: number
+          producto_id: string | null
           subtotal_usd: number
-          talles_cantidades: Json
         }
         Insert: {
-          cantidad_curvas: number
+          cantidad: number
           created_at?: string | null
-          curva_id?: string | null
           id?: string
-          pedido_id: string
-          producto_id: string
+          pedido_id?: string | null
+          precio_unitario: number
+          producto_id?: string | null
           subtotal_usd: number
-          talles_cantidades: Json
         }
         Update: {
-          cantidad_curvas?: number
+          cantidad?: number
           created_at?: string | null
-          curva_id?: string | null
           id?: string
-          pedido_id?: string
-          producto_id?: string
+          pedido_id?: string | null
+          precio_unitario?: number
+          producto_id?: string | null
           subtotal_usd?: number
-          talles_cantidades?: Json
         }
         Relationships: [
-          {
-            foreignKeyName: "items_pedido_curva_id_fkey"
-            columns: ["curva_id"]
-            isOneToOne: false
-            referencedRelation: "curvas"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "items_pedido_pedido_id_fkey"
             columns: ["pedido_id"]
@@ -125,26 +101,65 @@ export type Database = {
           },
         ]
       }
+      marcas: {
+        Row: {
+          activa: boolean | null
+          color_primario: string | null
+          color_secundario: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          logo_url: string | null
+          nombre: string
+        }
+        Insert: {
+          activa?: boolean | null
+          color_primario?: string | null
+          color_secundario?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          logo_url?: string | null
+          nombre: string
+        }
+        Update: {
+          activa?: boolean | null
+          color_primario?: string | null
+          color_secundario?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          logo_url?: string | null
+          nombre?: string
+        }
+        Relationships: []
+      }
       pedidos: {
         Row: {
-          cliente_id: string
+          cliente_id: string | null
           created_at: string | null
+          estado: string
           id: string
           total_usd: number
+          updated_at: string | null
           vendedor_id: string | null
         }
         Insert: {
-          cliente_id: string
+          cliente_id?: string | null
           created_at?: string | null
+          estado?: string
           id?: string
           total_usd: number
+          updated_at?: string | null
           vendedor_id?: string | null
         }
         Update: {
-          cliente_id?: string
+          cliente_id?: string | null
           created_at?: string | null
+          estado?: string
           id?: string
           total_usd?: number
+          updated_at?: string | null
           vendedor_id?: string | null
         }
         Relationships: [
@@ -166,49 +181,40 @@ export type Database = {
       }
       productos: {
         Row: {
-          categoria: string
+          categoria: string | null
           created_at: string | null
-          fecha_despacho: string | null
           game_plan: boolean | null
-          genero: string
+          genero: string | null
           id: string
           imagen_url: string | null
-          linea: string
+          linea: string | null
           nombre: string
           precio_usd: number
           sku: string
-          tier: string
-          xfd: string | null
         }
         Insert: {
-          categoria: string
+          categoria?: string | null
           created_at?: string | null
-          fecha_despacho?: string | null
           game_plan?: boolean | null
-          genero: string
+          genero?: string | null
           id?: string
           imagen_url?: string | null
-          linea: string
+          linea?: string | null
           nombre: string
           precio_usd: number
           sku: string
-          tier: string
-          xfd?: string | null
         }
         Update: {
-          categoria?: string
+          categoria?: string | null
           created_at?: string | null
-          fecha_despacho?: string | null
           game_plan?: boolean | null
-          genero?: string
+          genero?: string | null
           id?: string
           imagen_url?: string | null
-          linea?: string
+          linea?: string | null
           nombre?: string
           precio_usd?: number
           sku?: string
-          tier?: string
-          xfd?: string | null
         }
         Relationships: []
       }
@@ -217,6 +223,7 @@ export type Database = {
           cliente_id: string | null
           created_at: string | null
           id: string
+          marca_id: string | null
           role: string
           user_id: string
         }
@@ -224,6 +231,7 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string | null
           id?: string
+          marca_id?: string | null
           role: string
           user_id: string
         }
@@ -231,6 +239,7 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string | null
           id?: string
+          marca_id?: string | null
           role?: string
           user_id?: string
         }
@@ -247,16 +256,19 @@ export type Database = {
       vendedores: {
         Row: {
           created_at: string | null
+          email: string | null
           id: string
           nombre: string
         }
         Insert: {
           created_at?: string | null
+          email?: string | null
           id?: string
           nombre: string
         }
         Update: {
           created_at?: string | null
+          email?: string | null
           id?: string
           nombre?: string
         }
@@ -267,15 +279,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_cliente_id: {
+      create_superadmin: {
         Args: { user_id: string }
-        Returns: string
+        Returns: undefined
       }
-      get_cliente_tier: {
-        Args: { user_id: string }
-        Returns: string
+      has_superadmin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_superadmin: {
         Args: { user_id: string }
         Returns: boolean
       }
