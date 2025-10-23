@@ -171,9 +171,28 @@ Cada producto agregado al pedido incluye:
 - **No puede**: Crear, editar o eliminar productos
 
 ### **Formato Excel para carga masiva:**
-| SKU | Nombre Producto | Género | Línea | Categoría | Tier | Game Plan | Imagen URL | Precio | Marca | XFD | Fecha Despacho |
-|-----|------------------|--------|-------|-----------|------|------------|-------------|--------|-------|-----|-----------------|
-*Nota: El campo "Marca" puede ser Nike, Adidas, Puma, New Balance, etc.*
+| SKU | Nombre | Marca | Precio_USD | Línea | Rubro | Categoría | Género | Tier | Game_Plan | Imagen_URL | XFD | Fecha_Despacho |
+|-----|--------|-------|------------|-------|-------|-----------|--------|------|-----------|------------|-----|----------------|
+| NB001 | Classic 574 | New Balance | 89.99 | Classic | Calzados | Deportivo | Unisex | 1 | FALSE | https://... | 2024-03-15 | 2024-04-01 |
+
+**📋 Campos Requeridos:**
+- **SKU**: Código único del producto (obligatorio, único)
+- **Nombre**: Nombre del producto (obligatorio)
+- **Marca**: Marca del producto - debe existir en el sistema (obligatorio)
+- **Precio_USD**: Precio en dólares (obligatorio, > 0)
+- **Línea**: Línea del producto (obligatorio)
+- **Rubro**: Prendas, Calzados, Accesorios (obligatorio)
+- **Categoría**: Categoría del producto (obligatorio)
+- **Género**: Hombre, Mujer, Unisex, Niño, Niña (obligatorio)
+- **Tier**: 1, 2, 3, 4 (obligatorio)
+
+**📋 Campos Opcionales:**
+- **Game_Plan**: TRUE/FALSE (por defecto: FALSE)
+- **Imagen_URL**: URL de imagen del producto
+- **XFD**: Fecha de disponibilidad en fábrica (YYYY-MM-DD)
+- **Fecha_Despacho**: Fecha estimada de despacho (YYYY-MM-DD)
+
+*Ver archivo `CARGAMASIVA-PRODUCTOS.md` para especificación completa.*
 
 ---
 
