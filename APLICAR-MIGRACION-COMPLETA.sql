@@ -18,13 +18,28 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
 -- Habilitar RLS en la tabla usuarios
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 
--- Actualizar la tabla user_roles para que user_id referencie a usuarios.id
+-- PASO 1: Migrar datos existentes de auth.users a public.usuarios
+-- Crear usuarios desde la tabla auth.users
+INSERT INTO public.usuarios (id, email, nombre, activo, created_at)
+SELECT 
+  au.id,
+  au.email,
+  COALESCE(ur.nombre, au.email) as nombre,
+  true as activo,
+  COALESCE(ur.created_at, now()) as created_at
+FROM auth.users au
+LEFT JOIN public.user_roles ur ON au.id = ur.user_id
+ON CONFLICT (id) DO NOTHING;
+
+-- PASO 2: Actualizar la tabla user_roles para que user_id referencie a usuarios.id
 -- Primero, asegurarse de que user_id en user_roles sea UUID
 ALTER TABLE public.user_roles 
   ALTER COLUMN user_id TYPE UUID USING user_id::text::uuid;
 
--- Agregar foreign key de user_roles.user_id a usuarios.id
+-- Eliminar foreign key anterior si existe
 ALTER TABLE public.user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey;
+
+-- Agregar foreign key de user_roles.user_id a usuarios.id
 ALTER TABLE public.user_roles 
   ADD CONSTRAINT user_roles_user_id_fkey 
   FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
@@ -59,26 +74,31 @@ $$;
 
 -- Políticas RLS para usuarios
 -- Superadmin puede ver todos los usuarios
+DROP POLICY IF EXISTS "Superadmin puede ver todos los usuarios" ON public.usuarios;
 CREATE POLICY "Superadmin puede ver todos los usuarios"
 ON public.usuarios FOR SELECT
 USING (public.is_superadmin(auth.uid()));
 
 -- Usuario puede ver su propia información
+DROP POLICY IF EXISTS "Usuario puede ver su propia información" ON public.usuarios;
 CREATE POLICY "Usuario puede ver su propia información"
 ON public.usuarios FOR SELECT
 USING (id = auth.uid());
 
 -- Superadmin puede insertar usuarios
+DROP POLICY IF EXISTS "Superadmin puede insertar usuarios" ON public.usuarios;
 CREATE POLICY "Superadmin puede insertar usuarios"
 ON public.usuarios FOR INSERT
 WITH CHECK (public.is_superadmin(auth.uid()));
 
 -- Superadmin puede actualizar usuarios
+DROP POLICY IF EXISTS "Superadmin puede actualizar usuarios" ON public.usuarios;
 CREATE POLICY "Superadmin puede actualizar usuarios"
 ON public.usuarios FOR UPDATE
 USING (public.is_superadmin(auth.uid()));
 
 -- Superadmin puede eliminar usuarios
+DROP POLICY IF EXISTS "Superadmin puede eliminar usuarios" ON public.usuarios;
 CREATE POLICY "Superadmin puede eliminar usuarios"
 ON public.usuarios FOR DELETE
 USING (public.is_superadmin(auth.uid()));
@@ -98,6 +118,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_usuarios_updated_at ON public.usuarios;
 CREATE TRIGGER update_usuarios_updated_at
   BEFORE UPDATE ON public.usuarios
   FOR EACH ROW
