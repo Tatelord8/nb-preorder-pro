@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -41,16 +41,11 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-    loadStats();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async (): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate("/auth");
-      return;
+      return false;
     }
 
     // Check if user is superadmin
@@ -68,56 +63,172 @@ const Dashboard = () => {
         variant: "destructive",
       });
       navigate("/catalog");
-      return;
+      return false;
     }
 
     setLoading(false);
-  };
+    return true;
+  }, [navigate, toast]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
-      // Load all stats in parallel
+      // Helper function to safely execute queries
+      const safeQuery = async (query: Promise<any>, defaultValue: any = { count: 0, data: [] }) => {
+        try {
+          const result = await query;
+          return result;
+        } catch (error) {
+          console.warn("Query failed:", error);
+          return defaultValue;
+        }
+      };
+
+             // Obtener todos los usuarios para contar carritos pendientes
+       const { data: allUsers } = await supabase
+         .from("user_roles")
+         .select("user_id");
+
+       // Crear un Set con los IDs de usuarios válidos
+       const userIdsValidos = new Set<string>();
+       if (allUsers) {
+         allUsers.forEach(user => {
+           if (user.user_id) {
+             userIdsValidos.add(user.user_id);
+           }
+         });
+       }
+
+       console.log(`🔍 DEBUG: Usuarios válidos encontrados: ${userIdsValidos.size}`);
+       userIdsValidos.forEach(id => console.log(`  - ${id}`));
+
+             // Contar carritos pendientes: solo carritos con productos sin finalizar
+       let carritosPendientesCount = 0;
+       
+       // Obtener usuario actual
+       const { data: { session } } = await supabase.auth.getSession();
+       const currentUserId = session?.user?.id;
+       
+       // Recorrer TODAS las claves en localStorage para buscar carritos
+       const carritosEncontrados = new Set<string>();
+       
+       // Buscar todos los carritos en localStorage
+       console.log("🔍 DEBUG: Iterando localStorage...");
+       for (let i = 0; i < localStorage.length; i++) {
+         const key = localStorage.key(i);
+         
+         // SOLO considerar claves específicas de usuario (cartItems_userId), NO la global
+         if (key && key.startsWith("cartItems_")) {
+           // Extraer el user_id de la clave
+           const userIdFromKey = key.replace("cartItems_", "");
+           
+           console.log(`🔍 DEBUG: Encontrada clave cartItems_: ${key} (user_id: ${userIdFromKey})`);
+           
+           // SOLO contar si el user_id existe en la base de datos
+           if (userIdsValidos.has(userIdFromKey)) {
+             console.log(`  ✅ User ID ${userIdFromKey} es válido`);
+             try {
+               const cartData = localStorage.getItem(key);
+               if (cartData) {
+                 const items = JSON.parse(cartData);
+                 console.log(`  🔍 Key ${key} tiene ${items.length} items`);
+                 // Solo contar si hay items reales (array no vacío)
+                 if (Array.isArray(items) && items.length > 0) {
+                   // Usar la clave del localStorage como identificador único del carrito
+                   carritosEncontrados.add(key);
+                   console.log(`  📦 Carrito encontrado: ${key} con ${items.length} items`);
+                 } else {
+                   console.log(`  ⚠️ Key ${key} está vacío (length: ${items.length})`);
+                 }
+               }
+             } catch (e) {
+               console.warn(`  ❌ Error parsing cart ${key}:`, e);
+             }
+           } else {
+             console.log(`  ⚠️ User ID ${userIdFromKey} NO es válido (usuario no existe en BD)`);
+           }
+         }
+       }
+       
+       carritosPendientesCount = carritosEncontrados.size;
+       console.log(`🔍 Total carritos pendientes: ${carritosPendientesCount}`);
+
+      // Load all stats in parallel with error handling
       const [
         usersResult,
         marcasResult,
         productosResult,
         pedidosResult,
-        pedidosPendientesResult,
         pedidosAutorizadosResult,
         ingresosResult,
         usuariosActivosResult
       ] = await Promise.all([
-        supabase.from("user_roles").select("id", { count: "exact" }),
-        supabase.from("marcas").select("id", { count: "exact" }),
-        supabase.from("productos").select("id", { count: "exact" }),
-        supabase.from("pedidos").select("id", { count: "exact" }),
-        supabase.from("pedidos").select("id", { count: "exact" }).eq("estado", "pendiente"),
-        supabase.from("pedidos").select("id", { count: "exact" }).eq("estado", "autorizado"),
-        supabase.from("pedidos").select("total_usd").eq("estado", "autorizado"),
-        supabase.from("user_roles").select("id", { count: "exact" }).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        safeQuery(supabase.from("user_roles").select("id", { count: "exact", head: true })),
+        safeQuery(supabase.from("marcas").select("id", { count: "exact", head: true })),
+        safeQuery(supabase.from("productos").select("id", { count: "exact", head: true })),
+        safeQuery(supabase.from("pedidos").select("id", { count: "exact", head: true })),
+        safeQuery(
+          supabase.from("pedidos").select("id", { count: "exact", head: true }).eq("estado", "autorizado")
+        ),
+        safeQuery(
+          supabase.from("pedidos").select("total_usd").eq("estado", "autorizado"),
+          { data: [] }
+        ),
+        safeQuery(
+          supabase.from("user_roles").select("id", { count: "exact", head: true }).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        )
       ]);
+
+             console.log("🔍 Dashboard Stats Debug:", {
+         totalPedidos: pedidosResult.count,
+         carritosPendientes: carritosPendientesCount,
+         pedidosAutorizados: pedidosAutorizadosResult.count,
+       });
 
       const ingresosTotales = ingresosResult.data?.reduce((sum, pedido) => sum + (pedido.total_usd || 0), 0) || 0;
 
-      setStats({
-        totalUsers: usersResult.count || 0,
-        totalMarcas: marcasResult.count || 0,
-        totalProductos: productosResult.count || 0,
-        totalPedidos: pedidosResult.count || 0,
-        pedidosPendientes: pedidosPendientesResult.count || 0,
-        pedidosAutorizados: pedidosAutorizadosResult.count || 0,
-        ingresosTotales,
-        usuariosActivos: usuariosActivosResult.count || 0,
-      });
+             setStats({
+         totalUsers: usersResult.count || 0,
+         totalMarcas: marcasResult.count || 0,
+         totalProductos: productosResult.count || 0,
+         totalPedidos: pedidosResult.count || 0,
+         pedidosPendientes: carritosPendientesCount || 0,
+         pedidosAutorizados: pedidosAutorizadosResult.count || 0,
+         ingresosTotales,
+         usuariosActivos: usuariosActivosResult.count || 0,
+       });
     } catch (error) {
       console.error("Error loading stats:", error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar las estadísticas",
+        description: "No se pudieron cargar las estadísticas. Asegúrate de que la migración de estado haya sido aplicada.",
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      const isAuthenticated = await checkAuth();
+      if (isAuthenticated) {
+        loadStats();
+      }
+    };
+    
+    initializeDashboard();
+
+    // Escuchar cambios en el carrito para actualizar el contador
+    const handleCartUpdate = () => {
+      loadStats();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener('storage', handleCartUpdate);
+
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('storage', handleCartUpdate);
+    };
+  }, [loadStats, checkAuth]);
 
   const statCards = [
     {
@@ -149,7 +260,7 @@ const Dashboard = () => {
       bgColor: "bg-orange-50",
     },
     {
-      title: "Pedidos Pendientes",
+      title: "Carritos Pendientes",
       value: stats.pedidosPendientes,
       icon: UserX,
       color: "text-yellow-600",
@@ -244,10 +355,10 @@ const Dashboard = () => {
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Estado del Sistema</h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Pedidos Pendientes</span>
-                <span className="font-medium text-yellow-600">{stats.pedidosPendientes}</span>
-              </div>
+                             <div className="flex items-center justify-between">
+                 <span className="text-sm text-muted-foreground">Carritos Pendientes</span>
+                 <span className="font-medium text-yellow-600">{stats.pedidosPendientes}</span>
+               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Pedidos Autorizados</span>
                 <span className="font-medium text-green-600">{stats.pedidosAutorizados}</span>

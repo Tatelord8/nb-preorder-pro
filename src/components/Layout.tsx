@@ -47,50 +47,132 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const [userRole, setUserRole] = useState<string>("");
   const [clientName, setClientName] = useState<string>("");
-  const [cart, setCart] = useState<{ [key: string]: number }>({});
+  const [cart, setCart] = useState<any[]>([]);
 
   useEffect(() => {
     checkAuth();
     loadCart();
+    
+    // Escuchar cambios en localStorage para actualizar el carrito
+    const handleStorageChange = () => {
+      loadCart();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // También escuchar cambios locales del carrito
+    const handleCartChange = () => {
+      loadCart();
+    };
+    
+    // Agregar un listener personalizado para cambios en el carrito
+    window.addEventListener('cartUpdated', handleCartChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cartUpdated', handleCartChange);
+    };
   }, []);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
+      // Limpiar el carrito si no hay sesión activa
+      localStorage.removeItem("cart");
+      localStorage.removeItem("cartItems");
+      setCart([]);
       navigate("/login");
       return;
     }
 
     // Get user role
-    const { data: userRole } = await supabase
+    const { data: userRole, error } = await supabase
       .from("user_roles")
       .select("role, clientes(nombre)")
       .eq("user_id", session.user.id)
       .single();
 
+    console.log("🔍 Debug Layout - userRole data:", userRole);
+    console.log("🔍 Debug Layout - userRole error:", error);
+
     if (userRole) {
+      console.log("🔍 Debug Layout - Setting userRole to:", userRole.role);
       setUserRole(userRole.role);
       if (userRole.clientes) {
         setClientName((userRole.clientes as any).nombre);
       }
+    } else {
+      console.log("🔍 Debug Layout - No userRole found");
     }
   };
 
   const loadCart = () => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+    // El carrito se guarda como "cartItems" en localStorage
+    const savedCartItems = localStorage.getItem("cartItems");
+    if (savedCartItems) {
+      const cartItems = JSON.parse(savedCartItems);
+      setCart(cartItems);
+    } else {
+      // Si no hay items en el carrito, limpiar el estado
+      setCart([]);
     }
   };
 
   const handleLogout = async () => {
+    // Guardar carrito actual del usuario antes de cerrar sesión
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const currentCartItems = localStorage.getItem("cartItems");
+      const currentCart = localStorage.getItem("cart");
+      
+      if (currentCartItems || currentCart) {
+        const userCartItemsKey = `cartItems_${session.user.id}`;
+        const userCartKey = `cart_${session.user.id}`;
+        
+        if (currentCartItems) {
+          localStorage.setItem(userCartItemsKey, currentCartItems);
+        }
+        if (currentCart) {
+          localStorage.setItem(userCartKey, currentCart);
+        }
+      }
+    }
+    
+    // Limpiar el carrito del localStorage general
+    localStorage.removeItem("cart");
+    localStorage.removeItem("cartItems");
+    setCart([]);
+    
     await supabase.auth.signOut();
     navigate("/login");
   };
 
   const getCartCount = () => {
-    return Object.values(cart).reduce((sum, count) => sum + count, 0);
+    // Si cart es un array de CartItems, contar los SKUs únicos
+    if (Array.isArray(cart)) {
+      // Verificar que el array no esté vacío
+      if (cart.length === 0) {
+        console.log("🔍 Debug Cart - Cart is empty");
+        return 0;
+      }
+      
+      // Obtener SKUs únicos del carrito
+      const uniqueSkus = new Set(cart.map((item: any) => item.productoId));
+      console.log("🔍 Debug Cart - Cart items:", cart);
+      console.log("🔍 Debug Cart - Unique SKUs:", Array.from(uniqueSkus));
+      console.log("🔍 Debug Cart - Count:", uniqueSkus.size);
+      return uniqueSkus.size; // Cantidad de SKUs diferentes en el carrito
+    }
+    // Si cart es un objeto, usar la lógica anterior
+    if (cart && typeof cart === 'object') {
+      return Object.values(cart).reduce((sum: number, count: any) => sum + (count as number), 0);
+    }
+    // Si no hay cart o es null/undefined, retornar 0
+    return 0;
   };
+
+  // Debug log para verificar el userRole en el render
+  console.log("🔍 Debug Layout - Current userRole:", userRole);
 
   return (
     <div className="flex h-screen w-full">
@@ -125,8 +207,19 @@ const Layout = ({ children }: LayoutProps) => {
                   </SidebarMenuItem>
                 )}
 
-                {/* Productos - Superadmin and Admin */}
-                {(userRole === "superadmin" || userRole === "admin") && (
+                {/* Productos - Solo Superadmin and Admin */}
+                {(() => {
+                  const shouldShow = userRole === "superadmin" || userRole === "admin";
+                  console.log("🔍 Debug Layout - Should show Productos:", shouldShow, "userRole:", userRole);
+                  
+                  // NO mostrar Productos para clientes o usuarios sin rol definido
+                  if (!userRole) {
+                    console.log("🔍 Debug Layout - userRole vacío, NO mostrando Productos");
+                    return false;
+                  }
+                  
+                  return shouldShow;
+                })() && (
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => navigate("/productos")}
@@ -162,8 +255,8 @@ const Layout = ({ children }: LayoutProps) => {
                   </SidebarMenuItem>
                 )}
 
-                {/* Marcas - Only Superadmin */}
-                {userRole === "superadmin" && (
+                {/* Marcas - Superadmin and Admin */}
+                {(userRole === "superadmin" || userRole === "admin") && (
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => navigate("/marcas")}
@@ -208,7 +301,7 @@ const Layout = ({ children }: LayoutProps) => {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => navigate("/cart")}>
                 <ShoppingCart className="h-4 w-4" />
-                <span>Mi Pedido ({getCartCount()})</span>
+                <span>Mi Pedido ({getCartCount() as number})</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -235,7 +328,7 @@ const Layout = ({ children }: LayoutProps) => {
                     </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">{clientName}</span>
+                <span className="text-sm text-muted-foreground">{clientName || ''}</span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 p-2 rounded-full hover:bg-muted transition-colors">
@@ -253,7 +346,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/cart")}>
                       <ShoppingCart className="h-4 w-4 mr-2" />
-                      <span>Mi Pedido ({getCartCount()})</span>
+                      <span>Mi Pedido ({getCartCount() as number})</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Settings className="h-4 w-4 mr-2" />

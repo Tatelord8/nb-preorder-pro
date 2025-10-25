@@ -34,7 +34,14 @@ const Login = () => {
             password: "admin123",
           });
 
-          if (loginError) throw loginError;
+          if (loginError) {
+            toast({
+              title: "Error de autenticación",
+              description: "No se pudo autenticar al superadmin existente.",
+              variant: "destructive",
+            });
+            return;
+          }
 
           if (loginData.session) {
             // Verificar si ya tiene rol
@@ -46,20 +53,39 @@ const Login = () => {
 
             if (!existingRole) {
               // Crear rol si no existe
-              await supabase
+              const { error: roleError } = await supabase
                 .from("user_roles")
                 .insert({
                   user_id: loginData.session.user.id,
                   role: "superadmin",
                   nombre: "Superadmin Principal"
                 });
+
+              if (roleError) {
+                toast({
+                  title: "Error al crear rol",
+                  description: "No se pudo asignar el rol de superadmin.",
+                  variant: "destructive",
+                });
+                return;
+              }
             }
 
+            toast({
+              title: "Superadmin autenticado",
+              description: "Acceso exitoso como superadmin.",
+            });
             navigate("/catalog");
             return;
           }
         }
-        throw signUpError;
+        
+        toast({
+          title: "Error al crear superadmin",
+          description: signUpError.message,
+          variant: "destructive",
+        });
+        return;
       }
 
       if (signUpData.user) {
@@ -116,16 +142,23 @@ const Login = () => {
       });
 
       if (error) {
-        // Si el usuario no existe, intentar crear superadmin
-        if (error.message.includes("Invalid login credentials")) {
+        // Solo intentar crear superadmin si es el email específico del superadmin
+        if (error.message.includes("Invalid login credentials") && formData.email === "superadmin@preventa.com") {
           toast({
-            title: "Usuario no encontrado",
+            title: "Superadmin no encontrado",
             description: "Creando superadmin automáticamente...",
           });
           await createSuperadmin();
           return;
         }
-        throw error;
+        
+        // Para otros usuarios, mostrar error normal
+        toast({
+          title: "Error de autenticación",
+          description: "Credenciales inválidas. Verifica tu email y contraseña.",
+          variant: "destructive",
+        });
+        return;
       }
 
       if (data.session) {
@@ -135,6 +168,23 @@ const Login = () => {
           .select("role")
           .eq("user_id", data.session.user.id)
           .single();
+
+        // Restaurar carrito específico del usuario
+        const userCartItemsKey = `cartItems_${data.session.user.id}`;
+        const userCartKey = `cart_${data.session.user.id}`;
+        
+        const savedCartItems = localStorage.getItem(userCartItemsKey);
+        const savedCart = localStorage.getItem(userCartKey);
+        
+        if (savedCartItems) {
+          localStorage.setItem("cartItems", savedCartItems);
+        }
+        if (savedCart) {
+          localStorage.setItem("cart", savedCart);
+        }
+        
+        // Disparar evento para actualizar el Layout
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
 
         toast({
           title: "Bienvenido",

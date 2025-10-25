@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          marca_id: string
           nombre: string
           tier: string
           vendedor_id: string | null
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          marca_id: string
           nombre: string
           tier?: string
           vendedor_id?: string | null
@@ -32,11 +34,20 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          marca_id?: string
           nombre?: string
           tier?: string
           vendedor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clientes_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curvas: {
         Row: {
@@ -138,7 +149,7 @@ export type Database = {
         Row: {
           cliente_id: string | null
           created_at: string | null
-          estado: string
+          estado: string | null
           id: string
           total_usd: number
           updated_at: string | null
@@ -183,38 +194,88 @@ export type Database = {
         Row: {
           categoria: string | null
           created_at: string | null
+          fecha_despacho: string | null
           game_plan: boolean | null
           genero: string | null
           id: string
           imagen_url: string | null
           linea: string | null
+          marca_id: string | null
           nombre: string
           precio_usd: number
+          rubro: string
           sku: string
+          tier: string | null
+          xfd: string | null
         }
         Insert: {
           categoria?: string | null
           created_at?: string | null
+          fecha_despacho?: string | null
           game_plan?: boolean | null
           genero?: string | null
           id?: string
           imagen_url?: string | null
           linea?: string | null
+          marca_id?: string | null
           nombre: string
           precio_usd: number
+          rubro: string
           sku: string
+          tier?: string | null
+          xfd?: string | null
         }
         Update: {
           categoria?: string | null
           created_at?: string | null
+          fecha_despacho?: string | null
           game_plan?: boolean | null
           genero?: string | null
           id?: string
           imagen_url?: string | null
           linea?: string | null
+          marca_id?: string | null
           nombre?: string
           precio_usd?: number
+          rubro?: string
           sku?: string
+          tier?: string | null
+          xfd?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiers: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: number
+          nombre: string
+          numero: number
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: number
+          nombre: string
+          numero: number
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: number
+          nombre?: string
+          numero?: number
         }
         Relationships: []
       }
@@ -224,7 +285,9 @@ export type Database = {
           created_at: string | null
           id: string
           marca_id: string | null
+          nombre: string | null
           role: string
+          tier_id: number | null
           user_id: string
         }
         Insert: {
@@ -232,7 +295,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           marca_id?: string | null
+          nombre?: string | null
           role: string
+          tier_id?: number | null
           user_id: string
         }
         Update: {
@@ -240,7 +305,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           marca_id?: string | null
+          nombre?: string | null
           role?: string
+          tier_id?: number | null
           user_id?: string
         }
         Relationships: [
@@ -249,6 +316,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "tiers"
             referencedColumns: ["id"]
           },
         ]
@@ -279,22 +353,58 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_superadmin: {
-        Args: { user_id: string }
-        Returns: undefined
+      confirm_user_email: { Args: { user_id: string }; Returns: Json }
+      create_superadmin: { Args: { user_id: string }; Returns: undefined }
+      create_user_with_role:
+        | {
+            Args: {
+              user_cliente_id?: string
+              user_email: string
+              user_marca_id?: string
+              user_nombre?: string
+              user_password: string
+              user_role: string
+              user_tier_id?: number
+            }
+            Returns: {
+              email: string
+              nombre: string
+              role: string
+              success: boolean
+              tier_id: number
+              user_id: string
+            }[]
+          }
+        | {
+            Args: {
+              cliente_id?: string
+              marca_id?: string
+              user_email: string
+              user_password: string
+              user_role: string
+            }
+            Returns: Json
+          }
+      delete_user: { Args: { user_id_to_delete: string }; Returns: Json }
+      get_users_with_roles: {
+        Args: never
+        Returns: {
+          cliente_id: string
+          created_at: string
+          email: string
+          id: string
+          marca_id: string
+          nombre: string
+          role: string
+          tier_id: number
+          tier_nombre: string
+          user_id: string
+        }[]
       }
-      has_superadmin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_superadmin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
+      has_superadmin: { Args: never; Returns: boolean }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_client: { Args: { user_id?: string }; Returns: boolean }
+      is_superadmin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

@@ -65,18 +65,18 @@ const Marcas = () => {
       return;
     }
 
-    // Check if user is superadmin
+    // Check if user is superadmin or admin
     const { data: userRole } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", session.user.id)
-      .eq("role", "superadmin")
+      .in("role", ["superadmin", "admin"])
       .single();
 
     if (!userRole) {
       toast({
         title: "Acceso denegado",
-        description: "No tienes permisos de superadmin",
+        description: "No tienes permisos de administrador",
         variant: "destructive",
       });
       navigate("/catalog");

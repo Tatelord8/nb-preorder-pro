@@ -22,6 +22,8 @@ import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import SizeGeneratorTest from "./components/SizeGeneratorTest";
+import CurvesTest from "./components/CurvesTest";
 
 const queryClient = new QueryClient();
 
@@ -30,7 +32,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
@@ -95,6 +102,21 @@ const App = () => (
             <SidebarProvider>
               <Layout>
                 <Marcas />
+              </Layout>
+            </SidebarProvider>
+          } />
+          {/* Temporary routes for testing */}
+          <Route path="/test-sizes" element={
+            <SidebarProvider>
+              <Layout>
+                <SizeGeneratorTest />
+              </Layout>
+            </SidebarProvider>
+          } />
+          <Route path="/test-curves" element={
+            <SidebarProvider>
+              <Layout>
+                <CurvesTest />
               </Layout>
             </SidebarProvider>
           } />

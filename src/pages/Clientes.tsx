@@ -501,8 +501,8 @@ const Clientes = () => {
               }
               
               // Validar tier
-              const tiersValidos = ['premium', 'standard', 'basic', '1', '2', '3', '4'];
-              if (!tiersValidos.includes(cliente.tier.toLowerCase())) {
+              const tiersValidos = ['0', '1', '2', '3'];
+              if (!tiersValidos.includes(cliente.tier)) {
                 errors.push(`Fila ${i + 1}: Tier debe ser uno de: ${tiersValidos.join(', ')}`);
                 continue;
               }

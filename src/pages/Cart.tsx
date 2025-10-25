@@ -116,13 +116,14 @@ const Cart = () => {
 
       if (!userRole) return;
 
-      // Create order
+      // Create order with estado = 'autorizado' (pedido finalizado)
       const { data: pedido, error: pedidoError } = await supabase
         .from("pedidos")
         .insert({
           cliente_id: userRole.cliente_id,
           vendedor_id: clienteInfo?.clientes?.vendedor_id,
           total_usd: calculateTotal(),
+          estado: 'autorizado',
         })
         .select()
         .single();
@@ -130,14 +131,17 @@ const Cart = () => {
       if (pedidoError) throw pedidoError;
 
       // Create order items
-      const itemsToInsert = cartItems.map(item => ({
-        pedido_id: pedido.id,
-        producto_id: item.productoId,
-        curva_id: item.curvaId,
-        cantidad_curvas: item.cantidadCurvas,
-        talles_cantidades: item.talles,
-        subtotal_usd: calculateSubtotal(item),
-      }));
+      const itemsToInsert = cartItems.map(item => {
+        const producto = productos[item.productoId];
+        const totalQty = calculateTotalQuantity(item.talles, item.cantidadCurvas);
+        return {
+          pedido_id: pedido.id,
+          producto_id: item.productoId,
+          cantidad: totalQty,
+          precio_unitario: producto?.precio_usd || 0,
+          subtotal_usd: calculateSubtotal(item),
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("items_pedido")
@@ -148,9 +152,16 @@ const Cart = () => {
       // Generate Excel
       generateExcel(pedido.id);
 
-      // Clear cart
+      // Clear cart - tanto general como específico del usuario
       localStorage.removeItem("cart");
       localStorage.removeItem("cartItems");
+      const userCartItemsKey = `cartItems_${session.user.id}`;
+      const userCartKey = `cart_${session.user.id}`;
+      localStorage.removeItem(userCartItemsKey);
+      localStorage.removeItem(userCartKey);
+
+      // Disparar evento personalizado para notificar al Layout
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
 
       toast({
         title: "Pedido finalizado",
@@ -208,7 +219,7 @@ const Cart = () => {
     XLSX.writeFile(wb, `Pedido_${clienteInfo?.clientes?.nombre}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const handleRemoveItem = (index: number) => {
+  const handleRemoveItem = async (index: number) => {
     const updatedCartItems = [...cartItems];
     const removedItem = updatedCartItems.splice(index, 1)[0];
     
@@ -220,11 +231,38 @@ const Cart = () => {
     
     let updatedCart = cart;
     if (remainingItemsForProduct.length === 0) {
-      updatedCart = cart.filter((id: string) => id !== removedItem.productoId);
+      // Asegurar que cart es un array antes de usar filter
+      if (Array.isArray(cart)) {
+        updatedCart = cart.filter((id: string) => id !== removedItem.productoId);
+      } else {
+        // Si cart es un objeto, convertir a array y filtrar
+        const cartArray = Object.keys(cart);
+        updatedCart = cartArray.filter((id: string) => id !== removedItem.productoId);
+      }
     }
     
+    // Guardar en carrito general
     localStorage.setItem("cart", JSON.stringify(updatedCart));
     localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
+    
+    // Guardar en carrito específico del usuario
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const userCartItemsKey = `cartItems_${session.user.id}`;
+      const userCartKey = `cart_${session.user.id}`;
+      
+      // Si el carrito quedó vacío, eliminar las claves
+      if (updatedCartItems.length === 0) {
+        localStorage.removeItem(userCartItemsKey);
+        localStorage.removeItem(userCartKey);
+      } else {
+        localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
+        localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
+      }
+    }
+    
+    // Disparar evento personalizado para notificar al Layout
+    window.dispatchEvent(new CustomEvent('cartUpdated'));
     
     setCartItems(updatedCartItems);
     

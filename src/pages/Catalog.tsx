@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,35 +28,184 @@ interface Producto {
   game_plan: boolean;
   imagen_url: string | null;
   rubro?: string;
+  tier?: string;
 }
 
 const Catalog = () => {
   const { categoria } = useParams<{ categoria: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [cart, setCart] = useState<{ [key: string]: number }>({});
   const [selectedRubro, setSelectedRubro] = useState<string | null>(null);
+  const [userTier, setUserTier] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<any[]>([]);
 
   useEffect(() => {
-    loadCart();
-    // No cargar productos automáticamente, mostrar banners primero
-  }, [categoria]);
+    // Cargar tier del usuario al montar el componente
+    const initializeCatalog = async () => {
+      const tier = await loadUserTier();
+      
+      // Verificar si hay un rubro en la URL
+      const rubroFromUrl = searchParams.get('rubro');
+      if (rubroFromUrl) {
+        setSelectedRubro(rubroFromUrl);
+        loadProductos(rubroFromUrl, tier);
+      }
+    };
+    
+    initializeCatalog();
+    loadCartItems();
+  }, [categoria, searchParams]);
 
-  const loadCart = () => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+  const loadCartItems = () => {
+    const savedCartItems = localStorage.getItem("cartItems");
+    if (savedCartItems) {
+      const items = JSON.parse(savedCartItems);
+      setCartItems(items);
+    } else {
+      setCartItems([]);
     }
   };
 
-  const loadProductos = async (rubro?: string) => {
+  const isProductInCart = (productId: string) => {
+    return cartItems.some(item => item.productoId === productId);
+  };
+
+  // Recargar productos cuando cambie el tier del usuario
+  useEffect(() => {
+    if (userTier && selectedRubro) {
+      loadProductos(selectedRubro, userTier);
+    }
+  }, [userTier]);
+
+  // Escuchar cambios en el carrito
+  useEffect(() => {
+    const handleCartChange = () => {
+      loadCartItems();
+    };
+    
+    window.addEventListener('cartUpdated', handleCartChange);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartChange);
+    };
+  }, []);
+
+  const loadUserTier = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log("🔍 No hay sesión activa");
+        return null;
+      }
+
+      console.log("🔍 Usuario ID:", session.user.id);
+
+      // Estrategia: Usar función de Supabase que maneja RLS
+      try {
+        console.log("🔍 Intentando obtener tier usando función de Supabase...");
+        
+        // Usar la función get_users_with_roles que ya existe y maneja RLS
+        const { data: usersData, error: usersError } = await supabase
+          .rpc('get_users_with_roles');
+
+        console.log("🔍 Users data:", usersData);
+        console.log("🔍 Users error:", usersError);
+
+        if (usersData && !usersError) {
+          // Buscar el usuario actual en los datos
+          const currentUser = usersData.find((user: any) => user.user_id === session.user.id);
+          
+          if (currentUser) {
+            console.log("🔍 Usuario encontrado:", currentUser);
+            
+            // Si tiene tier_id, obtener el tier
+            if (currentUser.tier_id) {
+              // Buscar el tier en la tabla tiers
+              const { data: tierData, error: tierError } = await supabase
+                .from("tiers")
+                .select("numero")
+                .eq("id", currentUser.tier_id)
+                .single();
+
+              if (tierData && !tierError) {
+                const tier = tierData.numero.toString();
+                console.log("🔍 Tier obtenido de tabla tiers:", tier);
+                setUserTier(tier);
+                return tier;
+              }
+            }
+            
+            // Si no tiene tier_id, verificar si es cliente directo
+            if (currentUser.cliente_id) {
+              const { data: clienteData, error: clienteError } = await supabase
+                .from("clientes")
+                .select("tier")
+                .eq("id", currentUser.cliente_id)
+                .single();
+
+              if (clienteData && !clienteError) {
+                const tier = clienteData.tier;
+                console.log("🔍 Tier obtenido de cliente:", tier);
+                setUserTier(tier);
+                return tier;
+              }
+            }
+          }
+        }
+      } catch (rpcError) {
+        console.log("🔍 RPC falló, intentando consulta directa...", rpcError);
+      }
+
+      // Fallback: Intentar consulta directa a clientes
+      try {
+        console.log("🔍 Intentando consulta directa a clientes...");
+        
+        // Buscar cliente por user_id en user_roles
+        const { data: userRoleData, error: userRoleError } = await supabase
+          .from("user_roles")
+          .select("cliente_id")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (userRoleData?.cliente_id && !userRoleError) {
+          const { data: clienteData, error: clienteError } = await supabase
+            .from("clientes")
+            .select("tier")
+            .eq("id", userRoleData.cliente_id)
+            .single();
+
+          if (clienteData && !clienteError) {
+            const tier = clienteData.tier;
+            console.log("🔍 Tier obtenido por consulta directa:", tier);
+            setUserTier(tier);
+            return tier;
+          }
+        }
+      } catch (directError) {
+        console.log("🔍 Consulta directa también falló:", directError);
+      }
+
+      console.log("🔍 No se pudo obtener el tier del usuario");
+      return null;
+    } catch (error) {
+      console.error("Error loading user tier:", error);
+      return null;
+    }
+  };
+
+
+  const loadProductos = async (rubro?: string, tier?: string | null) => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.from("productos").select("*");
+      const { data, error } = await supabase
+        .from("productos")
+        .select("*")
+        .order("created_at", { ascending: true });
 
       if (error) {
         toast({
@@ -69,6 +218,22 @@ const Catalog = () => {
 
       // Filtrar productos en el frontend
       let filteredData = (data as Producto[]) || [];
+      
+      console.log("🔍 Total productos cargados:", filteredData.length);
+      console.log("🔍 User tier actual:", userTier);
+      console.log("🔍 Tier parameter:", tier);
+      
+      // Filtrar por tier del usuario (solo para clientes)
+      const tierToUse = tier || userTier;
+      if (tierToUse) {
+        const beforeFilter = filteredData.length;
+        filteredData = filteredData.filter(producto => producto.tier === tierToUse);
+        console.log("🔍 Productos antes del filtro:", beforeFilter);
+        console.log("🔍 Productos después del filtro:", filteredData.length);
+        console.log("🔍 Productos filtrados por tier:", tierToUse);
+      } else {
+        console.log("🔍 No hay tier, mostrando todos los productos");
+      }
       
       if (rubro) {
         filteredData = filteredData.filter(producto => producto.rubro === rubro);
@@ -93,39 +258,12 @@ const Catalog = () => {
 
   const handleRubroSelect = (rubro: string) => {
     setSelectedRubro(rubro);
-    loadProductos(rubro);
+    loadProductos(rubro, userTier);
   };
 
   const handleBackToBanners = () => {
     setSelectedRubro(null);
     setProductos([]);
-  };
-
-  const addToCart = (producto: Producto) => {
-    const newCart = { ...cart };
-    newCart[producto.id] = (newCart[producto.id] || 0) + 1;
-    setCart(newCart);
-    localStorage.setItem("cart", JSON.stringify(newCart));
-    
-    toast({
-      title: "Producto agregado",
-      description: `${producto.nombre} agregado al pedido`,
-    });
-  };
-
-  const removeFromCart = (producto: Producto) => {
-    const newCart = { ...cart };
-    if (newCart[producto.id] > 1) {
-      newCart[producto.id] -= 1;
-    } else {
-      delete newCart[producto.id];
-    }
-    setCart(newCart);
-    localStorage.setItem("cart", JSON.stringify(newCart));
-  };
-
-  const getCartCount = (productoId: string) => {
-    return cart[productoId] || 0;
   };
 
   const filteredProductos = productos.filter(producto =>
@@ -235,9 +373,17 @@ const Catalog = () => {
         {filteredProductos.map((producto) => (
           <Card 
             key={producto.id} 
-            className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => navigate(`/product/${producto.id}`)}
+            className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
+              isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
+            }`}
+            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}`)}
           >
+            {/* Check indicator */}
+            {isProductInCart(producto.id) && (
+              <div className="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1">
+                <Check className="h-4 w-4" />
+              </div>
+            )}
             <div className="aspect-square bg-muted flex items-center justify-center">
               {producto.imagen_url ? (
                 <img
@@ -281,35 +427,8 @@ const Catalog = () => {
                 <div className="text-lg font-bold">
                   ${producto.precio_usd} USD
                 </div>
-                <div className="flex items-center gap-2">
-                  {getCartCount(producto.id) > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFromCart(producto);
-                      }}
-                    >
-                      -
-                    </Button>
-                  )}
-                  {getCartCount(producto.id) > 0 && (
-                    <span className="text-sm font-medium min-w-[20px] text-center">
-                      {getCartCount(producto.id)}
-                    </span>
-                  )}
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addToCart(producto);
-                    }}
-                    className="flex items-center gap-1"
-                  >
-                    <Check className="h-3 w-3" />
-                    {getCartCount(producto.id) > 0 ? "Agregar" : "Agregar"}
-                  </Button>
+                <div className="text-sm text-muted-foreground">
+                  Ver detalles →
                 </div>
               </div>
             </div>

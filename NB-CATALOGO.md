@@ -84,8 +84,9 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 
 ### **Registro de Clientes:**
 - Los **Admins** pueden crear clientes de su marca asignada
-- Se asigna un tier (1, 2, 3, 4) y vendedor
+- Se asigna un tier (0, 1, 2, 3) y vendedor
 - Acceso limitado al catálogo según su tier y marca
+- **Tiers**: 0 (Premium), 1 (Gold), 2 (Silver), 3 (Bronze)
 
 ---
 
@@ -173,7 +174,7 @@ Cada producto agregado al pedido incluye:
 ### **Formato Excel para carga masiva:**
 | SKU | Nombre | Marca | Precio_USD | Línea | Rubro | Categoría | Género | Tier | Game_Plan | Imagen_URL | XFD | Fecha_Despacho |
 |-----|--------|-------|------------|-------|-------|-----------|--------|------|-----------|------------|-----|----------------|
-| NB001 | Classic 574 | New Balance | 89.99 | Classic | Calzados | Deportivo | Unisex | 1 | FALSE | https://... | 2024-03-15 | 2024-04-01 |
+| NB001 | Classic 574 | New Balance | 89.99 | Classic | Calzados | Deportivo | Unisex | 0 | FALSE | https://... | 2024-03-15 | 2024-04-01 |
 
 **📋 Campos Requeridos:**
 - **SKU**: Código único del producto (obligatorio, único)
@@ -184,7 +185,7 @@ Cada producto agregado al pedido incluye:
 - **Rubro**: Prendas, Calzados, Accesorios (obligatorio)
 - **Categoría**: Categoría del producto (obligatorio)
 - **Género**: Hombre, Mujer, Unisex, Niño, Niña (obligatorio)
-- **Tier**: 1, 2, 3, 4 (obligatorio)
+- **Tier**: 0, 1, 2, 3 (obligatorio) - 0 (Premium), 1 (Gold), 2 (Silver), 3 (Bronze)
 
 **📋 Campos Opcionales:**
 - **Game_Plan**: TRUE/FALSE (por defecto: FALSE)
@@ -408,7 +409,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 - `vendedores` - Gestión de vendedores ✅
 - `productos` - Catálogo de productos ✅
 - `marcas` - Gestión de marcas ✅
-- `tiers` - Sistema de tiers (1-4) ✅
+- `tiers` - Sistema de tiers (0, 1, 2, 3) ✅ - 0 (Premium), 1 (Gold), 2 (Silver), 3 (Bronze)
 - `pedidos` - Órdenes de compra ✅
 - `items_pedido` - Items de cada pedido ✅
 - `curvas` - Curvas de tallas ✅
@@ -421,7 +422,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 - ✅ Sistema de roles completo
 - ✅ Gestión de usuarios con verificación automática
 - ✅ Gestión de marcas con CRUD completo
-- ✅ Sistema de tiers (1-4) implementado
+- ✅ Sistema de tiers (0, 1, 2, 3) implementado - 0 (Premium), 1 (Gold), 2 (Silver), 3 (Bronze)
 - ✅ Funciones de seguridad (is_superadmin, is_admin, is_client)
 - ✅ Funciones de gestión (create_user_with_role, get_users_with_roles, delete_user)
 

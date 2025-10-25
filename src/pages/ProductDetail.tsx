@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { generateSizes, getSizeInfo, type ProductSizeInfo } from "@/utils/sizeGenerator";
+import { getCurvesForGender, getCurveInfo, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
+import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
 
 interface Producto {
   id: string;
@@ -17,9 +20,11 @@ interface Producto {
   precio_usd: number;
   linea: string;
   categoria: string;
+  rubro?: string;
   genero: string;
   game_plan: boolean;
   imagen_url: string | null;
+  tier?: string;
 }
 
 interface Curva {
@@ -31,6 +36,8 @@ interface Curva {
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rubroFromUrl = searchParams.get('rubro');
   const [producto, setProducto] = useState<Producto | null>(null);
   const [curvas, setCurvas] = useState<Curva[]>([]);
   const [selectedCurva, setSelectedCurva] = useState<string>("");
@@ -39,14 +46,77 @@ const ProductDetail = () => {
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
   const [isInCart, setIsInCart] = useState(false);
   const [validSizes, setValidSizes] = useState<string[]>([]);
+  
+  // Estados para curvas predefinidas
+  const [availableCurves, setAvailableCurves] = useState<CurveOption[]>([]);
+  const [selectedPredefinedCurve, setSelectedPredefinedCurve] = useState<number>(1);
+  const [appliedCurveQuantities, setAppliedCurveQuantities] = useState<Record<string, number>>({});
+  const [userTier, setUserTier] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
+      loadUserTier();
       loadProducto();
       checkIfInCart();
     }
   }, [id]);
+
+  const loadUserTier = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Obtener el tier del usuario desde user_roles
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("cliente_id, clientes(tier)")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (userRole?.clientes) {
+        setUserTier((userRole.clientes as any).tier);
+      }
+    } catch (error) {
+      console.error("Error loading user tier:", error);
+    }
+  };
+
+  // Cargar curvas predefinidas cuando cambie el género y rubro del producto
+  useEffect(() => {
+    if (producto?.genero && producto?.rubro) {
+      const curves = getCurvesForGender(producto.genero, producto.rubro);
+      setAvailableCurves(curves);
+      
+      if (curves.length > 0) {
+        setSelectedPredefinedCurve(curves[0].opcion);
+        updateAppliedCurve();
+      }
+    }
+  }, [producto?.genero, producto?.rubro]);
+
+  // Actualizar curvas aplicadas cuando cambien los parámetros
+  useEffect(() => {
+    if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
+      updateAppliedCurve();
+    }
+  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas]);
+
+  // Verificar acceso cuando se carguen tanto el producto como el tier del usuario
+  useEffect(() => {
+    if (producto && userTier && producto.tier !== userTier) {
+      setAccessDenied(true);
+    }
+  }, [producto, userTier]);
+
+  // Función para actualizar las curvas aplicadas
+  const updateAppliedCurve = () => {
+    if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
+      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas);
+      setAppliedCurveQuantities(applied);
+    }
+  };
 
   const checkIfInCart = () => {
     const cart = JSON.parse(localStorage.getItem("cart") || "{}");
@@ -77,65 +147,44 @@ const ProductDetail = () => {
       return;
     }
 
+    // Verificar acceso por tier (solo para clientes)
+    if (userTier && productoData.tier !== userTier) {
+      setAccessDenied(true);
+      toast({
+        title: "Acceso denegado",
+        description: "No tienes permisos para ver este producto",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setProducto(productoData);
 
-    // Determine valid sizes based on category and gender
-    let sizes: string[] = [];
-    const isCalzado = productoData.categoria.toLowerCase() === "calzados";
-    const isHombre = productoData.genero.toLowerCase() === "hombre";
-
-    if (isCalzado && isHombre) {
-      sizes = ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13"];
-    } else if (isCalzado && !isHombre) {
-      sizes = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
-    } else if (!isCalzado && isHombre) {
-      sizes = ["S", "M", "L", "XL", "XXL"];
-    } else if (!isCalzado && !isHombre) {
-      sizes = ["XS", "S", "M", "L", "XL"];
-    }
+    // Generate sizes using the new size generator utility
+    const productSizeInfo: ProductSizeInfo = {
+      rubro: productoData.rubro || productoData.categoria, // Use rubro if available, fallback to categoria
+      genero: productoData.genero
+    };
     
-    setValidSizes(sizes);
+    const sizeInfo = getSizeInfo(productSizeInfo);
+    setValidSizes(sizeInfo.sizes);
 
-    // Load curvas for this genero
-    const { data: curvasData } = await supabase
-      .from("curvas")
-      .select("*")
-      .eq("genero", productoData.genero);
-
-    if (curvasData) {
-      const formattedCurvas = curvasData.map(c => {
-        const talles = c.talles as Record<string, number>;
-        // Filter and order talles based on sizes
-        const filteredTalles: Record<string, number> = {};
-        sizes.forEach(size => {
-          if (talles[size] !== undefined) {
-            filteredTalles[size] = talles[size];
-          }
-        });
-        
-        return {
-          id: c.id,
-          nombre: c.nombre,
-          talles: filteredTalles,
-        };
-      }).filter(c => Object.keys(c.talles).length > 0); // Only keep curves with valid sizes
-      
-      setCurvas(formattedCurvas);
-      
-      // Initialize custom talles with valid sizes
-      const initialTalles: Record<string, number> = {};
-      sizes.forEach(size => {
-        initialTalles[size] = 0;
-      });
-      setCustomTalles(initialTalles);
-    }
+    // Las curvas predefinidas se cargan automáticamente en el useEffect
+    // No necesitamos consultar la base de datos para curvas
+    
+    // Initialize custom talles with valid sizes
+    const initialTalles: Record<string, number> = {};
+    validSizes.forEach(size => {
+      initialTalles[size] = 0;
+    });
+    setCustomTalles(initialTalles);
   };
 
-  const handleAddToCart = () => {
-    if (curvaType === "predefined" && !selectedCurva) {
+  const handleAddToCart = async () => {
+    if (curvaType === "predefined" && !selectedPredefinedCurve) {
       toast({
         title: "Error",
-        description: "Por favor selecciona una curva",
+        description: "Por favor selecciona una curva predefinida",
         variant: "destructive",
       });
       return;
@@ -153,68 +202,121 @@ const ProductDetail = () => {
       }
     }
 
+    // Obtener userId de la sesión actual
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "No hay sesión activa",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Save to cart
     const cart = JSON.parse(localStorage.getItem("cart") || "{}");
     const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
 
     const newItem = {
       productoId: id,
-      curvaId: curvaType === "predefined" ? selectedCurva : null,
+      curvaId: curvaType === "predefined" ? `predefined-${selectedPredefinedCurve}` : null,
       cantidadCurvas: curvaType === "predefined" ? cantidadCurvas : 1,
-      talles: curvaType === "custom" ? customTalles : 
-        curvas.find(c => c.id === selectedCurva)?.talles || {},
+      talles: curvaType === "custom" ? customTalles : appliedCurveQuantities,
       type: curvaType,
+      genero: producto?.genero,
+      opcion: curvaType === "predefined" ? selectedPredefinedCurve : null,
     };
 
     // Manejar carrito como objeto { [productId]: quantity }
+    let updatedCart = cart;
     if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
-      cart[id] = (cart[id] || 0) + 1;
+      updatedCart = { ...cart };
+      updatedCart[id] = ((updatedCart[id] as number) || 0) + 1;
     } else {
       // Si es array, convertir a objeto
-      const newCart: { [key: string]: number } = {};
+      updatedCart = {};
       if (Array.isArray(cart)) {
         cart.forEach((productId: string) => {
-          newCart[productId] = (newCart[productId] || 0) + 1;
+          updatedCart[productId] = ((updatedCart[productId] as number) || 0) + 1;
         });
       }
-      newCart[id] = (newCart[id] || 0) + 1;
-      localStorage.setItem("cart", JSON.stringify(newCart));
+      updatedCart[id] = ((updatedCart[id] as number) || 0) + 1;
     }
+    
+    const updatedCartItems = [...cartItems, newItem];
+    
+    // Guardar en localStorage general
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
+    
+    // Guardar también en localStorage específico del usuario
+    const userCartItemsKey = `cartItems_${session.user.id}`;
+    const userCartKey = `cart_${session.user.id}`;
+    localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
+    localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
 
-    cartItems.push(newItem);
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    // Disparar evento personalizado para notificar al Layout
+    window.dispatchEvent(new CustomEvent('cartUpdated'));
 
     toast({
       title: "Agregado al pedido",
       description: "El producto fue agregado exitosamente",
     });
 
-    navigate(-1);
+    // Navegar de vuelta al catálogo con el rubro correcto
+    if (rubroFromUrl) {
+      navigate(`/catalog?rubro=${rubroFromUrl}`);
+    } else {
+      navigate(-1);
+    }
   };
 
-  const handleRemoveFromCart = () => {
+  const handleRemoveFromCart = async () => {
+    // Obtener userId de la sesión actual
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "No hay sesión activa",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const cart = JSON.parse(localStorage.getItem("cart") || "{}");
     const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
 
     // Manejar carrito como objeto { [productId]: quantity }
+    let updatedCart = cart;
     if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
-      delete cart[id];
-      localStorage.setItem("cart", JSON.stringify(cart));
+      updatedCart = { ...cart };
+      delete updatedCart[id];
     } else {
       // Si es array, convertir a objeto y eliminar
-      const newCart: { [key: string]: number } = {};
+      updatedCart = {};
       if (Array.isArray(cart)) {
         cart.forEach((productId: string) => {
           if (productId !== id) {
-            newCart[productId] = (newCart[productId] || 0) + 1;
+            updatedCart[productId] = ((updatedCart[productId] as number) || 0) + 1;
           }
         });
       }
-      localStorage.setItem("cart", JSON.stringify(newCart));
     }
-
+    
     const updatedCartItems = cartItems.filter((item: any) => item.productoId !== id);
+    
+    // Guardar en localStorage general
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
     localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
+    
+    // Guardar también en localStorage específico del usuario
+    const userCartItemsKey = `cartItems_${session.user.id}`;
+    const userCartKey = `cart_${session.user.id}`;
+    localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
+    localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
+
+    // Disparar evento personalizado para notificar al Layout
+    window.dispatchEvent(new CustomEvent('cartUpdated'));
 
     setIsInCart(false);
 
@@ -228,11 +330,70 @@ const ProductDetail = () => {
     return <div className="min-h-screen flex items-center justify-center"></div>;
   }
 
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => {
+                if (rubroFromUrl) {
+                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                } else {
+                  navigate('/catalog');
+                }
+              }}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="h-8 w-8 text-destructive" />
+              </div>
+              <h1 className="text-2xl font-bold text-destructive mb-2">Acceso Denegado</h1>
+              <p className="text-muted-foreground">
+                No tienes permisos para ver este producto. Solo puedes acceder a productos de tu tier.
+              </p>
+            </div>
+            <Button 
+              onClick={() => {
+                if (rubroFromUrl) {
+                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                } else {
+                  navigate('/catalog');
+                }
+              }}
+              className="w-full"
+            >
+              Volver al Catálogo
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              if (rubroFromUrl) {
+                navigate(`/catalog?rubro=${rubroFromUrl}`);
+              } else {
+                navigate('/catalog');
+              }
+            }}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </div>
@@ -290,15 +451,15 @@ const ProductDetail = () => {
                 <>
                   <div className="space-y-2">
                     <Label>Seleccionar curva</Label>
-                    <RadioGroup value={selectedCurva} onValueChange={setSelectedCurva}>
-                      {curvas.map((curva) => (
-                        <div key={curva.id} className="flex items-center space-x-2">
-                          <RadioGroupItem value={curva.id} id={curva.id} />
-                          <Label htmlFor={curva.id} className="flex-1">
+                    <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
+                      {availableCurves.map((curve) => (
+                        <div key={curve.opcion} className="flex items-center space-x-2">
+                          <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
+                          <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
                             <div className="flex justify-between">
-                              <span>{curva.nombre}</span>
+                              <span>Opción {curve.opcion}</span>
                               <span className="text-xs text-muted-foreground">
-                                {validSizes.filter(size => curva.talles[size] !== undefined).map(size => `${size}:${curva.talles[size]}`).join(", ")}
+                                {curve.total} unidades
                               </span>
                             </div>
                           </Label>
@@ -312,6 +473,7 @@ const ProductDetail = () => {
                     <Input
                       type="number"
                       min="1"
+                      max="10"
                       value={cantidadCurvas}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -322,6 +484,24 @@ const ProductDetail = () => {
                       }}
                     />
                   </div>
+
+                  {/* Vista previa de las cantidades aplicadas */}
+                  {Object.keys(appliedCurveQuantities).length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Vista previa de cantidades</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
+                        {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
+                          <div key={talla} className="flex justify-between text-sm">
+                            <span className="font-medium">{talla}</span>
+                            <span className="text-gray-600">{cantidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Total: {Object.values(appliedCurveQuantities).reduce((sum, qty) => sum + qty, 0)} unidades
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="space-y-4">
