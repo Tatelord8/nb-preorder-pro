@@ -91,6 +91,20 @@ const Users = () => {
     loadTiers();
   }, []);
 
+  // Reset form when create form is opened
+  useEffect(() => {
+    if (showCreateForm) {
+      setFormData({
+        email: "",
+        password: "",
+        nombre: "",
+        role: "cliente",
+        tier_id: "none",
+        marca_id: "none",
+      });
+    }
+  }, [showCreateForm]);
+
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -505,7 +519,17 @@ const Users = () => {
             <h1 className="text-3xl font-bold mb-2">Gestión de Usuarios</h1>
             <p className="text-muted-foreground">Administra usuarios del sistema</p>
           </div>
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button onClick={() => {
+            setFormData({
+              email: "",
+              password: "",
+              nombre: "",
+              role: "cliente",
+              tier_id: "none",
+              marca_id: "none",
+            });
+            setShowCreateForm(true);
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             Crear Usuario
           </Button>
@@ -626,7 +650,9 @@ const Users = () => {
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
@@ -637,7 +663,9 @@ const Users = () => {
                   <Label htmlFor="password">Contraseña</Label>
                   <Input
                     id="password"
+                    name="password"
                     type="password"
+                    autoComplete="new-password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
@@ -648,7 +676,9 @@ const Users = () => {
                   <Label htmlFor="nombre">Nombre</Label>
                   <Input
                     id="nombre"
+                    name="nombre"
                     type="text"
+                    autoComplete="name"
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     placeholder="Nombre completo del usuario"
@@ -658,15 +688,19 @@ const Users = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Rol</Label>
-                  <Select value={formData.role} onValueChange={(value) => {
-                    // Si se selecciona admin o superadmin, bloquear tier y establecer como "none"
-                    const newFormData = { ...formData, role: value };
-                    if (value === "admin" || value === "superadmin") {
-                      newFormData.tier_id = "none";
-                    }
-                    setFormData(newFormData);
-                  }}>
-                    <SelectTrigger>
+                  <Select 
+                    name="role"
+                    value={formData.role} 
+                    onValueChange={(value) => {
+                      // Si se selecciona admin o superadmin, bloquear tier y establecer como "none"
+                      const newFormData = { ...formData, role: value };
+                      if (value === "admin" || value === "superadmin") {
+                        newFormData.tier_id = "none";
+                      }
+                      setFormData(newFormData);
+                    }}
+                  >
+                    <SelectTrigger id="role">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -680,11 +714,12 @@ const Users = () => {
                 <div className="space-y-2">
                   <Label htmlFor="tier_id">Tier</Label>
                   <Select 
+                    name="tier_id"
                     value={formData.tier_id} 
                     onValueChange={(value) => setFormData({ ...formData, tier_id: value })}
                     disabled={formData.role === "admin" || formData.role === "superadmin"}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="tier_id">
                       <SelectValue placeholder="Seleccionar tier" />
                     </SelectTrigger>
                     <SelectContent>
@@ -706,10 +741,11 @@ const Users = () => {
                 <div className="space-y-2">
                   <Label htmlFor="marca_id">Marca</Label>
                   <Select 
+                    name="marca_id"
                     value={formData.marca_id} 
                     onValueChange={(value) => setFormData({ ...formData, marca_id: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="marca_id">
                       <SelectValue placeholder="Seleccionar marca" />
                     </SelectTrigger>
                     <SelectContent>
@@ -727,7 +763,17 @@ const Users = () => {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setShowCreateForm(false);
+                    setFormData({
+                      email: "",
+                      password: "",
+                      nombre: "",
+                      role: "cliente",
+                      tier_id: "none",
+                      marca_id: "none",
+                    });
+                  }}>
                     Cancelar
                   </Button>
                   <Button type="submit">Crear Usuario</Button>
@@ -754,7 +800,9 @@ const Users = () => {
                 <Label htmlFor="edit-email">Email</Label>
                 <Input
                   id="edit-email"
+                  name="edit-email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   disabled
                   className="bg-muted"
@@ -766,7 +814,9 @@ const Users = () => {
                 <Label htmlFor="edit-password">Nueva Contraseña</Label>
                 <Input
                   id="edit-password"
+                  name="edit-password"
                   type="password"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="Dejar vacío para mantener la contraseña actual"
@@ -777,7 +827,9 @@ const Users = () => {
                 <Label htmlFor="edit-nombre">Nombre</Label>
                 <Input
                   id="edit-nombre"
+                  name="edit-nombre"
                   type="text"
+                  autoComplete="name"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   placeholder="Nombre completo del usuario"
@@ -787,15 +839,19 @@ const Users = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="edit-role">Rol</Label>
-                <Select value={formData.role} onValueChange={(value) => {
-                  // Si se selecciona admin o superadmin, bloquear tier y establecer como "none"
-                  const newFormData = { ...formData, role: value };
-                  if (value === "admin" || value === "superadmin") {
-                    newFormData.tier_id = "none";
-                  }
-                  setFormData(newFormData);
-                }}>
-                  <SelectTrigger>
+                <Select 
+                  name="edit-role"
+                  value={formData.role} 
+                  onValueChange={(value) => {
+                    // Si se selecciona admin o superadmin, bloquear tier y establecer como "none"
+                    const newFormData = { ...formData, role: value };
+                    if (value === "admin" || value === "superadmin") {
+                      newFormData.tier_id = "none";
+                    }
+                    setFormData(newFormData);
+                  }}
+                >
+                  <SelectTrigger id="edit-role">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -809,11 +865,12 @@ const Users = () => {
               <div className="space-y-2">
                 <Label htmlFor="edit-tier_id">Tier</Label>
                 <Select 
+                  name="edit-tier_id"
                   value={formData.tier_id} 
                   onValueChange={(value) => setFormData({ ...formData, tier_id: value })}
                   disabled={formData.role === "admin" || formData.role === "superadmin"}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit-tier_id">
                     <SelectValue placeholder="Seleccionar tier" />
                   </SelectTrigger>
                   <SelectContent>
@@ -835,10 +892,11 @@ const Users = () => {
               <div className="space-y-2">
                 <Label htmlFor="edit-marca_id">Marca</Label>
                 <Select 
+                  name="edit-marca_id"
                   value={formData.marca_id} 
                   onValueChange={(value) => setFormData({ ...formData, marca_id: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit-marca_id">
                     <SelectValue placeholder="Seleccionar marca" />
                   </SelectTrigger>
                   <SelectContent>

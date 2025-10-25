@@ -109,12 +109,13 @@ const Catalog = () => {
         // Obtener tier_id desde user_roles
         const { data: userRoleData, error: userRoleError } = await supabase
           .from('user_roles')
-          .select('tier_id')
+          .select('tier_id, role')
           .eq('user_id', session.user.id)
           .maybeSingle();
 
         console.log("🔍 user_roles tier_id data:", userRoleData);
         console.log("🔍 user_roles error:", userRoleError);
+        console.log("🔍 user_roles complete data:", JSON.stringify(userRoleData));
 
                   if (userRoleData && userRoleData.tier_id !== null) {
           const tierId = userRoleData.tier_id;
@@ -187,7 +188,7 @@ const Catalog = () => {
          isAdminOrSuperadmin = userRole?.role === 'admin' || userRole?.role === 'superadmin';
        }
        
-       // Solo filtrar por tier si NO es admin ni superadmin
+                // Solo filtrar por tier si NO es admin ni superadmin
        if (tierToUse && !isAdminOrSuperadmin) {
          const beforeFilter = filteredData.length;
          
@@ -201,11 +202,21 @@ const Catalog = () => {
            validTiers.push(i.toString());
          }
          
-         filteredData = filteredData.filter(producto => validTiers.includes(producto.tier || ''));
+         console.log("🔍 FILTRO DE TIER APLICADO:");
+         console.log("  - Usuario Tier:", userTierNum);
+         console.log("  - Tiers válidos:", validTiers);
+         console.log("  - Total productos ANTES del filtro:", beforeFilter);
          
-         console.log("🔍 Productos antes del filtro:", beforeFilter);
-         console.log("🔍 Productos después del filtro:", filteredData.length);
-         console.log("🔍 Tiers válidos para usuario tier", userTierNum, ":", validTiers);
+         // Aplicar el filtro
+         filteredData = filteredData.filter(producto => {
+           const productoEsValido = validTiers.includes(producto.tier || '');
+           if (!productoEsValido && producto.tier) {
+             console.log(`  ❌ Producto ${producto.sku} (tier ${producto.tier}) NO es válido para usuario tier ${userTierNum}`);
+           }
+           return productoEsValido;
+         });
+         
+         console.log("  - Total productos DESPUÉS del filtro:", filteredData.length);
        } else if (isAdminOrSuperadmin) {
          console.log("🔍 Usuario es admin/superadmin, mostrando todos los productos");
        } else {

@@ -88,6 +88,20 @@ Este README proporciona instrucciones completas para levantar el proyecto, estru
 - Acceso limitado al catálogo según su tier y marca
 - **Tiers**: 0 (Premium), 1 (Gold), 2 (Silver), 3 (Bronze)
 
+### **🎯 Sistema de Visibilidad por Tier:**
+El filtrado de productos se basa en una jerarquía de tiers donde los clientes pueden ver productos de su tier o tiers inferiores:
+
+- **Tier 0 (Premium)**: Puede ver productos de tiers 0, 1, 2 y 3 (acceso completo al catálogo)
+- **Tier 1 (Gold)**: Puede ver productos de tiers 1, 2 y 3
+- **Tier 2 (Silver)**: Puede ver productos de tiers 2 y 3
+- **Tier 3 (Bronze)**: Solo puede ver productos de tier 3
+- **Superadmin y Admin**: Ven todos los productos sin restricción de tier
+
+**Ejemplo:**
+- Un cliente Bronze (tier 3) solo verá productos con tier 3
+- Un cliente Premium (tier 0) verá todos los productos del catálogo
+- Los administradores y superadministradores siempre ven todo el catálogo completo
+
 ---
 
 ## 🧭 Flujos por Rol de Usuario
