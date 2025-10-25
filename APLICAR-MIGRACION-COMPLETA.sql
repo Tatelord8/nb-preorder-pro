@@ -72,6 +72,39 @@ AS $$
   WHERE u.id = get_user_info.user_id;
 $$;
 
+-- Función para obtener todos los usuarios con sus roles
+-- Primero eliminar la función existente si existe
+DROP FUNCTION IF EXISTS public.get_users_with_roles();
+
+CREATE OR REPLACE FUNCTION public.get_users_with_roles()
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  email TEXT,
+  nombre TEXT,
+  role TEXT,
+  cliente_id UUID,
+  marca_id UUID,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    ur.id,
+    u.id as user_id,
+    u.email,
+    COALESCE(ur.nombre, u.nombre) as nombre,
+    ur.role,
+    ur.cliente_id,
+    ur.marca_id,
+    u.created_at
+  FROM public.user_roles ur
+  INNER JOIN public.usuarios u ON ur.user_id = u.id
+  ORDER BY u.created_at DESC;
+$$;
+
 -- Políticas RLS para usuarios
 -- Superadmin puede ver todos los usuarios
 DROP POLICY IF EXISTS "Superadmin puede ver todos los usuarios" ON public.usuarios;
