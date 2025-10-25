@@ -104,33 +104,31 @@ const Catalog = () => {
 
       console.log("🔍 Usuario ID:", session.user.id);
 
-      // Consultar directamente a usuarios.tier desde auth.users
+      // Consultar tier desde user_roles y tiers
       try {
-        // Primero obtener el email del usuario desde auth.users
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user && user.email) {
-          console.log("🔍 Obteniendo tier desde usuarios usando email:", user.email);
-          
-          // Consultar el tier desde la tabla usuarios usando el email
-          const { data: usuarioData, error: usuarioError } = await supabase
-            .from('usuarios')
-            .select('tier')
-            .eq('email', user.email)
-            .maybeSingle();
+        // Obtener tier_id desde user_roles
+        const { data: userRoleData, error: userRoleError } = await supabase
+          .from('user_roles')
+          .select('tier_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
 
-          console.log("🔍 usuarios tier data:", usuarioData);
-          console.log("🔍 usuarios tier error:", usuarioError);
+        console.log("🔍 user_roles tier_id data:", userRoleData);
+        console.log("🔍 user_roles error:", userRoleError);
 
-          if (usuarioData && usuarioData.tier) {
-            const tier = usuarioData.tier;
-            console.log("🔍 Tier obtenido desde usuarios.tier:", tier);
-            setUserTier(tier);
-            return tier;
-          }
+                  if (userRoleData && userRoleData.tier_id !== null) {
+          const tierId = userRoleData.tier_id;
+          console.log("🔍 Tier ID obtenido:", tierId);
+
+          // tier_id en user_roles ES el número del tier directamente
+          // No necesitamos consultar tiers, el tier_id ya contiene el número
+          const tier = tierId.toString();
+          console.log("🔍 Tier obtenido:", tier);
+          setUserTier(tier);
+          return tier;
         }
       } catch (error) {
-        console.error("🔍 Error obteniendo tier desde usuarios:", error);
+        console.error("🔍 Error obteniendo tier:", error);
       }
 
       console.log("🔍 No se pudo obtener el tier del usuario");

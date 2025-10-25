@@ -162,3 +162,63 @@ CREATE TRIGGER update_usuarios_updated_at
 -- ==========================================
 -- MIGRACIÓN COMPLETADA
 -- ==========================================
+
+-- ==========================================
+-- ACTUALIZAR TIERS EN PRODUCTOS Y CLIENTES
+-- ==========================================
+
+-- Actualizar productos: convertir 'A'->'0', 'B'->'1', 'C'->'2', 'D'->'3'
+UPDATE public.productos
+SET tier = CASE
+  WHEN tier = 'A' THEN '0'
+  WHEN tier = 'B' THEN '1'
+  WHEN tier = 'C' THEN '2'
+  WHEN tier = 'D' THEN '3'
+  ELSE tier
+END
+WHERE tier IN ('A', 'B', 'C', 'D');
+
+-- Actualizar productos: convertir 'T1'->'0', 'T2'->'1', 'T3'->'2', 'T4'->'3'
+UPDATE public.productos
+SET tier = CASE
+  WHEN tier = 'T1' THEN '0'
+  WHEN tier = 'T2' THEN '1'
+  WHEN tier = 'T3' THEN '2'
+  WHEN tier = 'T4' THEN '3'
+  ELSE tier
+END
+WHERE tier IN ('T1', 'T2', 'T3', 'T4');
+
+-- Actualizar clientes: convertir 'A'->'0', 'B'->'1', 'C'->'2', 'D'->'3'
+UPDATE public.clientes
+SET tier = CASE
+  WHEN tier = 'A' THEN '0'
+  WHEN tier = 'B' THEN '1'
+  WHEN tier = 'C' THEN '2'
+  WHEN tier = 'D' THEN '3'
+  ELSE tier
+END
+WHERE tier IN ('A', 'B', 'C', 'D');
+
+-- Actualizar clientes: convertir 'T1'->'0', 'T2'->'1', 'T3'->'2', 'T4'->'3'
+UPDATE public.clientes
+SET tier = CASE
+  WHEN tier = 'T1' THEN '0'
+  WHEN tier = 'T2' THEN '1'
+  WHEN tier = 'T3' THEN '2'
+  WHEN tier = 'T4' THEN '3'
+  ELSE tier
+END
+WHERE tier IN ('T1', 'T2', 'T3', 'T4');
+
+-- Actualizar constraint en productos para aceptar solo 0-3
+ALTER TABLE public.productos DROP CONSTRAINT IF EXISTS productos_tier_check;
+ALTER TABLE public.productos ADD CONSTRAINT productos_tier_check CHECK (tier IN ('0', '1', '2', '3'));
+
+-- Actualizar constraint en clientes para aceptar solo 0-3
+ALTER TABLE public.clientes DROP CONSTRAINT IF EXISTS clientes_tier_check;
+ALTER TABLE public.clientes ADD CONSTRAINT clientes_tier_check CHECK (tier IN ('0', '1', '2', '3'));
+
+-- ==========================================
+-- FIN DE ACTUALIZACIÓN DE TIERS
+-- ==========================================

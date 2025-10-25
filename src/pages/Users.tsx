@@ -136,8 +136,28 @@ const Users = () => {
       // Obtener información adicional de clientes y marcas
       const usersWithDetails = await Promise.all(
         ((data as any[]) || []).map(async (user: any) => {
+          console.log("🔍 Processing user:", user.email, "tier_id:", user.tier_id);
+          
           let clienteInfo = null;
           let marcaInfo = null;
+          let tierNombre = null;
+
+          // Obtener nombre del tier si existe tier_id
+          if (user.tier_id !== null && user.tier_id !== undefined) {
+            console.log("🔍 Looking up tier_id:", user.tier_id);
+            const { data: tierData, error: tierError } = await supabase
+              .from("tiers")
+              .select("numero, nombre")
+              .eq("numero", user.tier_id)
+              .single();
+            
+            if (tierError) {
+              console.error("❌ Error fetching tier:", tierError);
+            } else {
+              console.log("✅ Tier found:", tierData);
+              tierNombre = tierData?.nombre || null;
+            }
+          }
 
           if (user.cliente_id) {
             const { data: cliente } = await supabase
@@ -159,12 +179,14 @@ const Users = () => {
 
           return {
             ...user,
+            tier_nombre: tierNombre,
             clientes: clienteInfo,
             marcas: marcaInfo
           };
         })
       );
 
+      console.log("🔍 Final users with details:", usersWithDetails);
       setUsers(usersWithDetails as any);
     } catch (error) {
       console.error("Error loading users:", error);
@@ -334,7 +356,10 @@ const Users = () => {
         updateData.tier_id = null;
       } else if (formData.tier_id && formData.tier_id !== "none") {
         // Solo incluir tier_id si es diferente de "none" para otros roles
-        updateData.tier_id = parseInt(formData.tier_id);
+        // tier_id debe ser el número del tier, no el UUID
+        const tierNumber = parseInt(formData.tier_id);
+        updateData.tier_id = isNaN(tierNumber) ? null : tierNumber;
+        console.log("🔍 Tier ID conversion:", formData.tier_id, "->", updateData.tier_id);
       } else {
         // Si es "none" o vacío, establecer como null
         updateData.tier_id = null;
@@ -348,6 +373,10 @@ const Users = () => {
       }
 
       console.log("📤 Update data:", updateData);
+      console.log("🔍 Editing user ID:", editingUser.user_id);
+
+      console.log("🔍 About to update with data:", updateData);
+      console.log("🔍 User ID being updated:", editingUser.user_id);
 
       const { data: updateResult, error: roleError } = await supabase
         .from("user_roles")
@@ -361,24 +390,24 @@ const Users = () => {
       }
 
       console.log("✅ User role updated successfully:", updateResult);
-
-      // Si se cambió la contraseña, actualizarla
-      if (formData.password && formData.password.trim() !== "") {
-        console.log("🔄 Updating password...");
-        const { error: passwordError } = await supabase.auth.admin.updateUserById(
-          editingUser.user_id,
-          { password: formData.password }
-        );
-
-        if (passwordError) {
-          console.warn("⚠️ Error updating password:", passwordError);
-          toast({
-            title: "Advertencia",
-            description: "Usuario actualizado, pero hubo un problema al cambiar la contraseña",
-            variant: "destructive",
-          });
+      
+      // Verificar que los datos se guardaron correctamente
+      if (!updateResult || updateResult.length === 0) {
+        console.warn("⚠️ No se devolvió ningún resultado de la actualización");
+      } else {
+        console.log("✅ Datos actualizados en la BD:", updateResult[0]);
+        
+        // Verificar que los datos realmente se guardaron consultando la BD
+        const { data: verifyData, error: verifyError } = await supabase
+          .from("user_roles")
+          .select("*")
+          .eq("user_id", editingUser.user_id)
+          .single();
+        
+        if (verifyError) {
+          console.error("❌ Error verifying update:", verifyError);
         } else {
-          console.log("✅ Password updated successfully");
+          console.log("🔍 Verificación post-actualización:", verifyData);
         }
       }
 
@@ -398,7 +427,11 @@ const Users = () => {
       });
       setShowEditDialog(false);
       setEditingUser(null);
-      loadUsers();
+      
+      // Esperar un momento antes de recargar
+      setTimeout(() => {
+        loadUsers();
+      }, 500);
     } catch (error: any) {
       console.error("❌ Error updating user:", error);
       toast({
@@ -657,8 +690,8 @@ const Users = () => {
                     <SelectContent>
                       <SelectItem value="none">Sin tier</SelectItem>
                       {tiers.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id.toString()}>
-                          {tier.nombre} - {tier.descripcion}
+                        <SelectItem key={tier.id} value={tier.numero.toString()}>
+                          {tier.numero} - {tier.nombre} - {tier.descripcion}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -786,8 +819,8 @@ const Users = () => {
                   <SelectContent>
                     <SelectItem value="none">Sin tier</SelectItem>
                     {tiers.map((tier) => (
-                      <SelectItem key={tier.id} value={tier.id.toString()}>
-                        {tier.nombre} - {tier.descripcion}
+                      <SelectItem key={tier.id} value={tier.numero.toString()}>
+                        {tier.numero} - {tier.nombre} - {tier.descripcion}
                       </SelectItem>
                     ))}
                   </SelectContent>
