@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,10 @@ import {
   Check, 
   Search, 
   Shirt, 
-  ShoppingBag
+  ShoppingBag,
+  Footprints,
+  Watch,
+  ArrowRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,19 +27,22 @@ interface Producto {
   genero: string;
   game_plan: boolean;
   imagen_url: string | null;
+  rubro?: string;
 }
 
 const Catalog = () => {
   const { categoria } = useParams<{ categoria: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<{ [key: string]: number }>({});
+  const [selectedRubro, setSelectedRubro] = useState<string | null>(null);
 
   useEffect(() => {
     loadCart();
-    loadProductos();
+    // No cargar productos automáticamente, mostrar banners primero
   }, [categoria]);
 
   const loadCart = () => {
@@ -46,16 +52,11 @@ const Catalog = () => {
     }
   };
 
-  const loadProductos = async () => {
+  const loadProductos = async (rubro?: string) => {
     try {
       setLoading(true);
-      let query = supabase.from("productos").select("*");
-
-      if (categoria) {
-        query = query.eq("categoria", categoria);
-      }
-
-      const { data, error } = await query;
+      
+      const { data, error } = await supabase.from("productos").select("*");
 
       if (error) {
         toast({
@@ -66,7 +67,18 @@ const Catalog = () => {
         return;
       }
 
-      setProductos(data || []);
+      // Filtrar productos en el frontend
+      let filteredData = (data as Producto[]) || [];
+      
+      if (rubro) {
+        filteredData = filteredData.filter(producto => producto.rubro === rubro);
+      }
+      
+      if (categoria) {
+        filteredData = filteredData.filter(producto => producto.categoria === categoria);
+      }
+      
+      setProductos(filteredData);
     } catch (error) {
       console.error("Error loading productos:", error);
       toast({
@@ -77,6 +89,16 @@ const Catalog = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRubroSelect = (rubro: string) => {
+    setSelectedRubro(rubro);
+    loadProductos(rubro);
+  };
+
+  const handleBackToBanners = () => {
+    setSelectedRubro(null);
+    setProductos([]);
   };
 
   const addToCart = (producto: Producto) => {
@@ -111,12 +133,73 @@ const Catalog = () => {
     producto.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Mostrar banners de rubros si no hay rubro seleccionado
+  if (!selectedRubro) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="p-6 border-b">
+          <h1 className="text-3xl font-bold mb-2">Catálogo de Productos</h1>
+          <p className="text-muted-foreground">Selecciona una categoría para ver los productos disponibles</p>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Banner Calzados */}
+            <Card 
+              className="group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
+              onClick={() => handleRubroSelect("Calzados")}
+            >
+              <div className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                    <Footprints className="h-10 w-10 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Calzados</h2>
+                  <p className="text-gray-600 mb-4">
+                    Descubre nuestra colección de zapatillas deportivas, casuales y de running
+                  </p>
+                </div>
+                <div className="flex items-center justify-center text-blue-600 font-semibold group-hover:text-blue-700">
+                  Ver Productos
+                  <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Card>
+
+            {/* Banner Prendas */}
+            <Card 
+              className="group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
+              onClick={() => handleRubroSelect("Prendas")}
+            >
+              <div className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                    <Shirt className="h-10 w-10 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Prendas</h2>
+                  <p className="text-gray-600 mb-4">
+                    Explora nuestra línea de ropa deportiva, casual y accesorios de moda
+                  </p>
+                </div>
+                <div className="flex items-center justify-center text-green-600 font-semibold group-hover:text-green-700">
+                  Ver Productos
+                  <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar productos del rubro seleccionado
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p></p>
+          <p>Cargando productos...</p>
         </div>
       </div>
     );
@@ -125,6 +208,17 @@ const Catalog = () => {
   return (
     <div className="h-full flex flex-col">
       <div className="p-6 border-b">
+        <div className="flex items-center justify-between mb-4">
+          <Button 
+            variant="outline" 
+            onClick={handleBackToBanners}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a Categorías
+          </Button>
+          <h2 className="text-xl font-semibold capitalize">{selectedRubro}</h2>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -139,7 +233,11 @@ const Catalog = () => {
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredProductos.map((producto) => (
-          <Card key={producto.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+          <Card 
+            key={producto.id} 
+            className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigate(`/product/${producto.id}`)}
+          >
             <div className="aspect-square bg-muted flex items-center justify-center">
               {producto.imagen_url ? (
                 <img
@@ -188,7 +286,10 @@ const Catalog = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => removeFromCart(producto)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFromCart(producto);
+                      }}
                     >
                       -
                     </Button>
@@ -200,7 +301,10 @@ const Catalog = () => {
                   )}
                   <Button
                     size="sm"
-                    onClick={() => addToCart(producto)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(producto);
+                    }}
                     className="flex items-center gap-1"
                   >
                     <Check className="h-3 w-3" />

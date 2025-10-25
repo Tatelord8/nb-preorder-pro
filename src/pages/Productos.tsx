@@ -99,6 +99,7 @@ const Productos = () => {
   // Form states
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [formData, setFormData] = useState({
     sku: "",
@@ -194,25 +195,15 @@ const Productos = () => {
     try {
       console.log("🔄 Loading productos from database...");
       
-      // Consulta optimizada con campos específicos
+      // Consulta optimizada con campos específicos y JOIN con marcas
       const { data, error } = await supabase
         .from("productos")
         .select(`
-          id,
-          sku,
-          nombre,
-          precio_usd,
-          linea,
-          categoria,
-          genero,
-          tier,
-          game_plan,
-          imagen_url,
-          xfd,
-          fecha_despacho,
-          marca_id,
-          rubro,
-          created_at
+          *,
+          marcas (
+            id,
+            nombre
+          )
         `)
         .order("nombre", { ascending: true });
 
@@ -422,6 +413,39 @@ const Productos = () => {
     }
   };
 
+  const handleDeleteAllProducts = async () => {
+    try {
+      console.log("🔄 Deleting all products...");
+      
+      const { data, error } = await supabase
+        .from("productos")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000") // Delete all products
+        .select();
+
+      if (error) {
+        console.error("❌ Error deleting all products:", error);
+        throw error;
+      }
+
+      console.log(`✅ ${data?.length || 0} products deleted successfully`);
+      toast({
+        title: "Productos eliminados",
+        description: `Se eliminaron ${data?.length || 0} productos exitosamente`,
+      });
+
+      setShowDeleteAllDialog(false);
+      loadProductos();
+    } catch (error: any) {
+      console.error("❌ Exception deleting all products:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Error al eliminar todos los productos",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openEditForm = (producto: Producto) => {
     setEditingProduct(producto);
     setFormData({
@@ -509,38 +533,136 @@ const Productos = () => {
 
   const processExcelFile = async (file: File) => {
     try {
-      // Simular procesamiento de archivo Excel
-      // En una implementación real, usarías una librería como xlsx
+      console.log("🔄 Procesando archivo:", file.name);
+      
       const text = await file.text();
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        throw new Error('El archivo debe tener al menos una fila de encabezados y una fila de datos');
+      }
+      
+      // Procesar encabezados con mejor manejo de CSV
+      const headerLine = lines[0];
+      const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+      
+      console.log("📋 Encabezados encontrados:", headers);
       
       const products = [];
       const errors = [];
       
       for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.trim());
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        try {
+          const values = parseCSVLine(line);
           const product: any = {};
           
+          // Mapear valores a campos del producto
           headers.forEach((header, index) => {
-            product[header.toLowerCase()] = values[index] || '';
+            const value = values[index] ? values[index].trim() : '';
+            
+            // Mapear nombres de columnas comunes
+            if (header.includes('sku')) product.sku = value;
+            else if (header.includes('nombre')) product.nombre = value;
+            else if (header.includes('marca')) product.marca = value;
+            else if (header.includes('precio')) product.precio_usd = value;
+            else if (header.includes('línea') || header.includes('linea')) product.línea = value;
+            else if (header.includes('rubro')) product.rubro = value;
+            else if (header.includes('categoría') || header.includes('categoria')) product.categoría = value;
+            else if (header.includes('género') || header.includes('genero')) product.género = value;
+            else if (header.includes('tier')) product.tier = value;
+            else if (header.includes('game_plan') || header.includes('game plan')) product.game_plan = value;
+            else if (header.includes('imagen') || header.includes('url')) product.imagen_url = value;
+            else if (header.includes('xfd')) product.xfd = value;
+            else if (header.includes('fecha_despacho') || header.includes('despacho')) product.fecha_despacho = value;
+            else {
+              // Si no coincide con ningún patrón conocido, usar el nombre del header
+              product[header] = value;
+            }
           });
           
-          // Validar campos requeridos
-          if (!product.sku || !product.nombre || !product.precio_usd) {
-            errors.push(`Fila ${i + 1}: Faltan campos requeridos`);
+          console.log(`📦 Procesando producto fila ${i + 1}:`, {
+            sku: product.sku,
+            nombre: product.nombre,
+            marca: product.marca,
+            precio: product.precio_usd
+          });
+          
+          // Validar campos requeridos con mensajes más específicos
+          const missingFields = [];
+          if (!product.sku) missingFields.push('SKU');
+          if (!product.nombre) missingFields.push('Nombre');
+          if (!product.precio_usd) missingFields.push('Precio_USD');
+          if (!product.rubro) missingFields.push('Rubro');
+          
+          if (missingFields.length > 0) {
+            errors.push(`Fila ${i + 1}: Faltan campos requeridos: ${missingFields.join(', ')}`);
+            continue;
+          }
+          
+          // Validar formato de precio
+          if (isNaN(parseFloat(product.precio_usd))) {
+            errors.push(`Fila ${i + 1}: Precio_USD debe ser un número válido`);
+            continue;
+          }
+          
+          // Validar rubro
+          const rubrosValidos = ['Prendas', 'Calzados', 'Accesorios'];
+          if (product.rubro && !rubrosValidos.includes(product.rubro)) {
+            errors.push(`Fila ${i + 1}: Rubro debe ser uno de: ${rubrosValidos.join(', ')}`);
+            continue;
+          }
+          
+          // Validar género
+          const generosValidos = ['Mens', 'Womens', 'Preschool', 'Gradeschool', 'Infant', 'Unisex', 'Youth'];
+          if (product.género && !generosValidos.includes(product.género)) {
+            errors.push(`Fila ${i + 1}: Género debe ser uno de: ${generosValidos.join(', ')}`);
+            continue;
+          }
+          
+          // Validar tier
+          if (product.tier && !['1', '2', '3', '4'].includes(product.tier)) {
+            errors.push(`Fila ${i + 1}: Tier debe ser 1, 2, 3 o 4`);
             continue;
           }
           
           products.push(product);
+        } catch (lineError) {
+          errors.push(`Fila ${i + 1}: Error procesando línea - ${lineError.message}`);
         }
       }
       
+      console.log(`✅ Procesamiento completado: ${products.length} productos válidos, ${errors.length} errores`);
       return { products, errors };
     } catch (error) {
-      throw new Error('Error al procesar el archivo');
+      console.error("❌ Error procesando archivo:", error);
+      throw new Error(`Error al procesar el archivo: ${error.message}`);
     }
+  };
+
+  // Función auxiliar para parsear líneas CSV correctamente
+  const parseCSVLine = (line: string): string[] => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
   };
 
   const handleMassUpload = async () => {
@@ -782,6 +904,13 @@ const Productos = () => {
             <Button onClick={downloadTemplate} variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Plantilla Excel
+            </Button>
+            <Button 
+              onClick={() => setShowDeleteAllDialog(true)}
+              variant="destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar Todo
             </Button>
             <Button onClick={() => setShowCreateForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -1160,11 +1289,13 @@ const Productos = () => {
                       <SelectValue placeholder="Seleccionar género" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Hombre">Hombre</SelectItem>
-                      <SelectItem value="Mujer">Mujer</SelectItem>
+                      <SelectItem value="Mens">Mens</SelectItem>
+                      <SelectItem value="Womens">Womens</SelectItem>
+                      <SelectItem value="Preschool">Preschool</SelectItem>
+                      <SelectItem value="Gradeschool">Gradeschool</SelectItem>
+                      <SelectItem value="Infant">Infant</SelectItem>
                       <SelectItem value="Unisex">Unisex</SelectItem>
-                      <SelectItem value="Niño">Niño</SelectItem>
-                      <SelectItem value="Niña">Niña</SelectItem>
+                      <SelectItem value="Youth">Youth</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1339,11 +1470,13 @@ const Productos = () => {
                       <SelectValue placeholder="Seleccionar género" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Hombre">Hombre</SelectItem>
-                      <SelectItem value="Mujer">Mujer</SelectItem>
+                      <SelectItem value="Mens">Mens</SelectItem>
+                      <SelectItem value="Womens">Womens</SelectItem>
+                      <SelectItem value="Preschool">Preschool</SelectItem>
+                      <SelectItem value="Gradeschool">Gradeschool</SelectItem>
+                      <SelectItem value="Infant">Infant</SelectItem>
                       <SelectItem value="Unisex">Unisex</SelectItem>
-                      <SelectItem value="Niño">Niño</SelectItem>
-                      <SelectItem value="Niña">Niña</SelectItem>
+                      <SelectItem value="Youth">Youth</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1415,6 +1548,28 @@ const Productos = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete All Products Confirmation Dialog */}
+        <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción eliminará TODOS los productos de la base de datos. 
+                Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteAllProducts}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Eliminar Todo
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

@@ -49,8 +49,15 @@ const ProductDetail = () => {
   }, [id]);
 
   const checkIfInCart = () => {
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    setIsInCart(cart.includes(id));
+    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
+    // El carrito puede ser un objeto { [productId]: quantity } o un array [productId]
+    if (Array.isArray(cart)) {
+      setIsInCart(cart.includes(id));
+    } else if (typeof cart === 'object' && cart !== null) {
+      setIsInCart(cart.hasOwnProperty(id) && cart[id] > 0);
+    } else {
+      setIsInCart(false);
+    }
   };
 
   const loadProducto = async () => {
@@ -147,7 +154,7 @@ const ProductDetail = () => {
     }
 
     // Save to cart
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
     const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
 
     const newItem = {
@@ -159,12 +166,22 @@ const ProductDetail = () => {
       type: curvaType,
     };
 
-    if (!cart.includes(id)) {
-      cart.push(id);
+    // Manejar carrito como objeto { [productId]: quantity }
+    if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
+      cart[id] = (cart[id] || 0) + 1;
+    } else {
+      // Si es array, convertir a objeto
+      const newCart: { [key: string]: number } = {};
+      if (Array.isArray(cart)) {
+        cart.forEach((productId: string) => {
+          newCart[productId] = (newCart[productId] || 0) + 1;
+        });
+      }
+      newCart[id] = (newCart[id] || 0) + 1;
+      localStorage.setItem("cart", JSON.stringify(newCart));
     }
-    cartItems.push(newItem);
 
-    localStorage.setItem("cart", JSON.stringify(cart));
+    cartItems.push(newItem);
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
 
     toast({
@@ -176,13 +193,27 @@ const ProductDetail = () => {
   };
 
   const handleRemoveFromCart = () => {
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
     const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
 
-    const updatedCart = cart.filter((productId: string) => productId !== id);
-    const updatedCartItems = cartItems.filter((item: any) => item.productoId !== id);
+    // Manejar carrito como objeto { [productId]: quantity }
+    if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
+      delete cart[id];
+      localStorage.setItem("cart", JSON.stringify(cart));
+    } else {
+      // Si es array, convertir a objeto y eliminar
+      const newCart: { [key: string]: number } = {};
+      if (Array.isArray(cart)) {
+        cart.forEach((productId: string) => {
+          if (productId !== id) {
+            newCart[productId] = (newCart[productId] || 0) + 1;
+          }
+        });
+      }
+      localStorage.setItem("cart", JSON.stringify(newCart));
+    }
 
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    const updatedCartItems = cartItems.filter((item: any) => item.productoId !== id);
     localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
 
     setIsInCart(false);

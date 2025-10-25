@@ -1,17 +1,4 @@
 SKU,Nombre,Marca,Precio_USD,Línea,Rubro,Categoría,Género,Tier,Game_Plan,Imagen_URL,XFD,Fecha_Despacho
-NB001,Classic 574,New Balance,89.99,Classic,Calzados,Deportivo,Unisex,1,FALSE,https://example.com/nb-classic574.jpg,2024-03-15,2024-04-01
-NB002,990v5,New Balance,175.00,Made in USA,Calzados,Running,Hombre,2,FALSE,https://example.com/nb-990v5.jpg,2024-03-20,2024-04-05
-NB003,Fresh Foam X 1080v12,New Balance,140.00,Fresh Foam,Calzados,Running,Mujer,3,FALSE,https://example.com/nb-1080v12.jpg,2024-03-25,2024-04-10
-NIKE001,Air Max 270,Nike,150.00,Air Max,Calzados,Running,Hombre,2,TRUE,https://example.com/nike-airmax270.jpg,2024-03-18,2024-04-03
-NIKE002,Air Force 1,Nike,90.00,Air Force,Calzados,Casual,Unisex,1,FALSE,https://example.com/nike-af1.jpg,2024-03-22,2024-04-07
-NIKE003,React Element 55,Nike,120.00,React,Calzados,Running,Mujer,2,FALSE,https://example.com/nike-react55.jpg,2024-03-28,2024-04-12
-ADIDAS001,Ultraboost 22,Adidas,180.00,Ultraboost,Calzados,Running,Mujer,3,FALSE,https://example.com/adidas-ub22.jpg,2024-03-30,2024-04-15
-ADIDAS002,Stan Smith,Adidas,80.00,Originals,Calzados,Casual,Unisex,1,FALSE,https://example.com/adidas-stan.jpg,2024-04-02,2024-04-17
-ADIDAS003,NMD R1,Adidas,130.00,NMD,Calzados,Casual,Hombre,2,TRUE,https://example.com/adidas-nmd.jpg,2024-04-05,2024-04-20
-PUMA001,RS-X Reinvention,Puma,110.00,RS-X,Calzados,Casual,Unisex,2,FALSE,https://example.com/puma-rsx.jpg,2024-04-08,2024-04-23
-PUMA002,Thunder Spectra,Puma,100.00,Thunder,Calzados,Casual,Hombre,1,FALSE,https://example.com/puma-thunder.jpg,2024-04-10,2024-04-25
-NB004,Essential Hoodie,New Balance,65.00,Essential,Prendas,Unisex,2,FALSE,https://example.com/nb-hoodie.jpg,2024-04-12,2024-04-27
-NIKE004,Dri-FIT T-Shirt,Nike,25.00,Dri-FIT,Prendas,Hombre,1,FALSE,https://example.com/nike-tshirt.jpg,2024-04-15,2024-04-30
-ADIDAS004,Adicolor Trefoil Hoodie,Adidas,70.00,Adicolor,Prendas,Unisex,2,FALSE,https://example.com/adidas-hoodie.jpg,2024-04-18,2024-05-02
-PUMA003,Classic Logo Cap,Puma,30.00,Classic,Accesorios,Unisex,1,FALSE,https://example.com/puma-cap.jpg,2024-04-20,2024-05-05
-NB005,Performance Backpack,New Balance,85.00,Performance,Accesorios,Unisex,3,FALSE,https://example.com/nb-backpack.jpg,2024-04-22,2024-05-07
+M108020E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Mens,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253275/M1080G14-1.jpg,2025-01-15,2025-05-15
+M108021E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Womens,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253276/M1080G14-2.jpg,2025-01-15,2025-05-15
+M108022E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Unisex,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253277/M1080G14-3.jpg,2025-01-15,2025-05-15
