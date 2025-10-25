@@ -104,89 +104,33 @@ const Catalog = () => {
 
       console.log("🔍 Usuario ID:", session.user.id);
 
-      // Estrategia: Usar función de Supabase que maneja RLS
+      // Consultar directamente a usuarios.tier desde auth.users
       try {
-        console.log("🔍 Intentando obtener tier usando función de Supabase...");
+        // Primero obtener el email del usuario desde auth.users
+        const { data: { user } } = await supabase.auth.getUser();
         
-        // Usar la función get_users_with_roles que ya existe y maneja RLS
-        const { data: usersData, error: usersError } = await supabase
-          .rpc('get_users_with_roles');
-
-        console.log("🔍 Users data:", usersData);
-        console.log("🔍 Users error:", usersError);
-
-        if (usersData && !usersError) {
-          // Buscar el usuario actual en los datos
-          const currentUser = usersData.find((user: any) => user.user_id === session.user.id);
+        if (user && user.email) {
+          console.log("🔍 Obteniendo tier desde usuarios usando email:", user.email);
           
-          if (currentUser) {
-            console.log("🔍 Usuario encontrado:", currentUser);
-            
-            // Si tiene tier_id, obtener el tier
-            if (currentUser.tier_id) {
-              // Buscar el tier en la tabla tiers
-              const { data: tierData, error: tierError } = await supabase
-                .from("tiers")
-                .select("numero")
-                .eq("id", currentUser.tier_id)
-                .single();
+          // Consultar el tier desde la tabla usuarios usando el email
+          const { data: usuarioData, error: usuarioError } = await supabase
+            .from('usuarios')
+            .select('tier')
+            .eq('email', user.email)
+            .maybeSingle();
 
-              if (tierData && !tierError) {
-                const tier = tierData.numero.toString();
-                console.log("🔍 Tier obtenido de tabla tiers:", tier);
-                setUserTier(tier);
-                return tier;
-              }
-            }
-            
-            // Si no tiene tier_id, verificar si es cliente directo
-            if (currentUser.cliente_id) {
-              const { data: clienteData, error: clienteError } = await supabase
-                .from("clientes")
-                .select("tier")
-                .eq("id", currentUser.cliente_id)
-                .single();
+          console.log("🔍 usuarios tier data:", usuarioData);
+          console.log("🔍 usuarios tier error:", usuarioError);
 
-              if (clienteData && !clienteError) {
-                const tier = clienteData.tier;
-                console.log("🔍 Tier obtenido de cliente:", tier);
-                setUserTier(tier);
-                return tier;
-              }
-            }
-          }
-        }
-      } catch (rpcError) {
-        console.log("🔍 RPC falló, intentando consulta directa...", rpcError);
-      }
-
-      // Fallback: Intentar consulta directa a clientes
-      try {
-        console.log("🔍 Intentando consulta directa a clientes...");
-        
-        // Buscar cliente por user_id en user_roles
-        const { data: userRoleData, error: userRoleError } = await supabase
-          .from("user_roles")
-          .select("cliente_id")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (userRoleData?.cliente_id && !userRoleError) {
-          const { data: clienteData, error: clienteError } = await supabase
-            .from("clientes")
-            .select("tier")
-            .eq("id", userRoleData.cliente_id)
-            .single();
-
-          if (clienteData && !clienteError) {
-            const tier = clienteData.tier;
-            console.log("🔍 Tier obtenido por consulta directa:", tier);
+          if (usuarioData && usuarioData.tier) {
+            const tier = usuarioData.tier;
+            console.log("🔍 Tier obtenido desde usuarios.tier:", tier);
             setUserTier(tier);
             return tier;
           }
         }
-      } catch (directError) {
-        console.log("🔍 Consulta directa también falló:", directError);
+      } catch (error) {
+        console.error("🔍 Error obteniendo tier desde usuarios:", error);
       }
 
       console.log("🔍 No se pudo obtener el tier del usuario");
@@ -223,17 +167,52 @@ const Catalog = () => {
       console.log("🔍 User tier actual:", userTier);
       console.log("🔍 Tier parameter:", tier);
       
-      // Filtrar por tier del usuario (solo para clientes)
-      const tierToUse = tier || userTier;
-      if (tierToUse) {
-        const beforeFilter = filteredData.length;
-        filteredData = filteredData.filter(producto => producto.tier === tierToUse);
-        console.log("🔍 Productos antes del filtro:", beforeFilter);
-        console.log("🔍 Productos después del filtro:", filteredData.length);
-        console.log("🔍 Productos filtrados por tier:", tierToUse);
-      } else {
-        console.log("🔍 No hay tier, mostrando todos los productos");
-      }
+             // Filtrar por tier del usuario (solo para clientes)
+       // Jerarquía: 0 (Premium - más alto), 1 (Gold), 2 (Silver), 3 (Bronze - más bajo)
+       // Un cliente de tier 0 puede ver productos de tier 0, 1, 2, 3 (todo el catálogo)
+       // Un cliente de tier 1 puede ver productos de tier 1, 2, 3
+       // Un cliente de tier 2 puede ver productos de tier 2, 3
+       // Un cliente de tier 3 solo puede ver productos de tier 3
+       const tierToUse = tier || userTier;
+       
+       // Verificar si el usuario es admin o superadmin
+       const { data: { session } } = await supabase.auth.getSession();
+       let isAdminOrSuperadmin = false;
+       
+       if (session) {
+         const { data: userRole } = await supabase
+           .from("user_roles")
+           .select("role")
+           .eq("user_id", session.user.id)
+           .single();
+         
+         isAdminOrSuperadmin = userRole?.role === 'admin' || userRole?.role === 'superadmin';
+       }
+       
+       // Solo filtrar por tier si NO es admin ni superadmin
+       if (tierToUse && !isAdminOrSuperadmin) {
+         const beforeFilter = filteredData.length;
+         
+         // Convertir tier a número para comparación
+         const userTierNum = parseInt(tierToUse);
+         const validTiers = [];
+         
+         // Agregar todos los tiers desde el tier del usuario hasta 3 (inclusive)
+         // Por ejemplo: si el usuario es tier 1, puede ver tiers 1, 2, 3
+         for (let i = userTierNum; i <= 3; i++) {
+           validTiers.push(i.toString());
+         }
+         
+         filteredData = filteredData.filter(producto => validTiers.includes(producto.tier || ''));
+         
+         console.log("🔍 Productos antes del filtro:", beforeFilter);
+         console.log("🔍 Productos después del filtro:", filteredData.length);
+         console.log("🔍 Tiers válidos para usuario tier", userTierNum, ":", validTiers);
+       } else if (isAdminOrSuperadmin) {
+         console.log("🔍 Usuario es admin/superadmin, mostrando todos los productos");
+       } else {
+         console.log("🔍 No hay tier, mostrando todos los productos");
+       }
       
       if (rubro) {
         filteredData = filteredData.filter(producto => producto.rubro === rubro);

@@ -85,6 +85,7 @@ RETURNS TABLE (
   role TEXT,
   cliente_id UUID,
   marca_id UUID,
+  tier_id INTEGER,
   created_at TIMESTAMPTZ
 )
 LANGUAGE SQL
@@ -99,6 +100,7 @@ AS $$
     ur.role,
     ur.cliente_id,
     ur.marca_id,
+    ur.tier_id,
     u.created_at
   FROM public.user_roles ur
   INNER JOIN public.usuarios u ON ur.user_id = u.id
