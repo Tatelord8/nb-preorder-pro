@@ -78,9 +78,6 @@ const Layout = ({ children }: LayoutProps) => {
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Limpiar el carrito si no hay sesión activa
-      localStorage.removeItem("cart");
-      localStorage.removeItem("cartItems");
       setCart([]);
       navigate("/login");
       return;
@@ -108,9 +105,16 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
-  const loadCart = () => {
-    // El carrito se guarda como "cartItems" en localStorage
-    const savedCartItems = localStorage.getItem("cartItems");
+  const loadCart = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setCart([]);
+      return;
+    }
+
+    // Load cart from user-specific storage
+    const userCartKey = `cartItems_${session.user.id}`;
+    const savedCartItems = localStorage.getItem(userCartKey);
     if (savedCartItems) {
       const cartItems = JSON.parse(savedCartItems);
       setCart(cartItems);
@@ -121,28 +125,15 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const handleLogout = async () => {
-    // Guardar carrito actual del usuario antes de cerrar sesión
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const currentCartItems = localStorage.getItem("cartItems");
-      const currentCart = localStorage.getItem("cart");
-      
-      if (currentCartItems || currentCart) {
-        const userCartItemsKey = `cartItems_${session.user.id}`;
-        const userCartKey = `cart_${session.user.id}`;
-        
-        if (currentCartItems) {
-          localStorage.setItem(userCartItemsKey, currentCartItems);
-        }
-        if (currentCart) {
-          localStorage.setItem(userCartKey, currentCart);
-        }
-      }
+      // Clear user-specific cart
+      const userCartItemsKey = `cartItems_${session.user.id}`;
+      const userCartKey = `cart_${session.user.id}`;
+      localStorage.removeItem(userCartItemsKey);
+      localStorage.removeItem(userCartKey);
     }
     
-    // Limpiar el carrito del localStorage general
-    localStorage.removeItem("cart");
-    localStorage.removeItem("cartItems");
     setCart([]);
     
     await supabase.auth.signOut();
