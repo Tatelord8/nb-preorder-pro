@@ -46,6 +46,9 @@ interface User {
   marcas?: {
     nombre: string;
   };
+  vendedor?: {
+    nombre: string;
+  };
 }
 
 interface Marca {
@@ -165,6 +168,7 @@ const Users = () => {
           let clienteInfo = null;
           let marcaInfo = null;
           let tierNombre = null;
+          let vendedorInfo = null;
 
           // Obtener nombre del tier si existe tier_id
           if (user.tier_id !== null && user.tier_id !== undefined) {
@@ -183,14 +187,37 @@ const Users = () => {
             }
           }
 
-          if (user.cliente_id) {
-            const { data: cliente } = await supabase
-              .from("clientes")
-              .select("nombre, tier")
-              .eq("id", user.cliente_id)
-              .single();
-            clienteInfo = cliente;
-          }
+                     // Buscar cliente usando el user_id del usuario
+           const { data: clienteData, error: clienteError } = await supabase
+             .from("clientes")
+             .select("nombre, tier, vendedor_id")
+             .eq("id", user.user_id)
+             .maybeSingle();
+           
+           if (clienteError) {
+             console.error("Error fetching cliente:", clienteError);
+           }
+           
+           if (clienteData) {
+             clienteInfo = clienteData;
+
+             // Si hay vendedor_id, obtener la información del vendedor
+             if (clienteData.vendedor_id) {
+               const { data: vendedor, error: vendedorError } = await supabase
+                 .from("vendedores")
+                 .select("nombre")
+                 .eq("id", clienteData.vendedor_id)
+                 .maybeSingle();
+               
+               if (vendedorError) {
+                 console.error("Error fetching vendedor:", vendedorError);
+               }
+               
+               if (vendedor) {
+                 vendedorInfo = vendedor;
+               }
+             }
+           }
 
           if (user.marca_id) {
             const { data: marca } = await supabase
@@ -205,7 +232,8 @@ const Users = () => {
             ...user,
             tier_nombre: tierNombre,
             clientes: clienteInfo,
-            marcas: marcaInfo
+            marcas: marcaInfo,
+            vendedor: vendedorInfo
           };
         })
       );
@@ -396,6 +424,34 @@ const Users = () => {
 
       console.log('✅ Usuario creado exitosamente con función SQL');
 
+      // Paso 5: Si el rol es cliente, crear el cliente en la tabla clientes con el vendedor
+      if (formData.role === "cliente" && formData.vendedor_id && formData.vendedor_id !== "none") {
+        console.log('📝 Creando cliente con vendedor asignado...');
+        
+        // Determinar el tier del cliente (convertir tier_id a tier string)
+        let tierValue = null;
+        if (tierId !== null) {
+          tierValue = tierId.toString();
+        }
+
+        const { error: clienteError } = await supabase
+          .from("clientes")
+          .insert({
+            id: signUpData.user.id,
+            nombre: formData.nombre,
+            tier: tierValue,
+            vendedor_id: formData.vendedor_id,
+            marca_id: marcaId
+          });
+
+        if (clienteError) {
+          console.error("❌ Error creating cliente:", clienteError);
+          // No lanzar error aquí, solo registrar el error
+        } else {
+          console.log('✅ Cliente creado exitosamente con vendedor asignado');
+        }
+      }
+
       toast({
         title: "Usuario creado",
         description: "El usuario fue creado exitosamente",
@@ -423,8 +479,23 @@ const Users = () => {
     }
   };
 
-  const openEditDialog = (user: User) => {
+  const openEditDialog = async (user: User) => {
     setEditingUser(user);
+    
+    // Cargar el vendedor asignado del cliente
+    let vendedorId = "none";
+    if (user.role === "cliente") {
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("vendedor_id")
+        .eq("id", user.user_id)
+        .maybeSingle();
+      
+      if (cliente && cliente.vendedor_id) {
+        vendedorId = cliente.vendedor_id;
+      }
+    }
+    
     setFormData({
       email: user.email,
       password: "", // No pre-llenar contraseña por seguridad
@@ -432,7 +503,7 @@ const Users = () => {
       role: user.role,
       tier_id: user.tier_id?.toString() || "none",
       marca_id: user.marca_id?.toString() || "none",
-      vendedor_id: "none",
+      vendedor_id: vendedorId,
     });
     setShowEditDialog(true);
   };
@@ -523,37 +594,120 @@ const Users = () => {
         }
       }
 
-      toast({
-        title: "Usuario actualizado",
-        description: "El usuario fue actualizado exitosamente",
-      });
+      // Si el rol es cliente, actualizar/crear el cliente en la tabla clientes
+      let clienteCreateError: any = null;
+      if (formData.role === "cliente") {
+        console.log('📝 Actualizando/creando cliente...');
+        
+        // Determinar el tier del cliente (convertir tier_id a tier string)
+        let tierValue = null;
+        if (updateData.tier_id !== null && updateData.tier_id !== undefined) {
+          tierValue = updateData.tier_id.toString();
+        }
 
-      // Reset form and reload
-      setFormData({
-        email: "",
-        password: "",
-        nombre: "",
-        role: "cliente",
-        tier_id: "none",
-        marca_id: "none",
-        vendedor_id: "none",
-      });
-      setShowEditDialog(false);
-      setEditingUser(null);
-      
-      // Esperar un momento antes de recargar
-      setTimeout(() => {
-        loadUsers();
-      }, 500);
-    } catch (error: any) {
-      console.error("❌ Error updating user:", error);
-      toast({
-        title: "Error",
-        description: `Error al actualizar el usuario: ${error.message}`,
-        variant: "destructive",
-      });
-    }
-  };
+        // Determinar vendedor_id
+        let vendedorIdValue = null;
+        if (formData.vendedor_id && formData.vendedor_id !== "none") {
+          vendedorIdValue = formData.vendedor_id;
+        }
+
+        // Verificar si el cliente ya existe en la tabla clientes
+        const { data: clienteExistente } = await supabase
+          .from("clientes")
+          .select("id")
+          .eq("id", editingUser.user_id)
+          .maybeSingle();
+
+        if (clienteExistente) {
+          // Actualizar el cliente existente
+          const { error: clienteUpdateError } = await supabase
+            .from("clientes")
+            .update({
+              nombre: formData.nombre,
+              tier: tierValue,
+              vendedor_id: vendedorIdValue,
+              marca_id: updateData.marca_id
+            })
+            .eq("id", editingUser.user_id);
+
+          if (clienteUpdateError) {
+            console.error("❌ Error updating cliente:", clienteUpdateError);
+            clienteCreateError = clienteUpdateError;
+          } else {
+            console.log('✅ Cliente actualizado exitosamente');
+          }
+        } else {
+           // Crear el cliente si no existe
+           // Verificar que marca_id esté presente antes de crear el cliente
+           if (!updateData.marca_id) {
+             console.error("❌ Error: marca_id es requerido para crear cliente");
+             toast({
+               title: "Error",
+               description: "Debe seleccionar una marca para el cliente",
+               variant: "destructive",
+             });
+             return;
+           }
+           
+           const { error: clienteCreateError } = await supabase
+             .from("clientes")
+             .insert({
+               id: editingUser.user_id,
+               nombre: formData.nombre,
+               tier: tierValue,
+               vendedor_id: vendedorIdValue,
+               marca_id: updateData.marca_id
+             });
+
+           if (clienteCreateError) {
+             console.error("❌ Error creating cliente:", clienteCreateError);
+             toast({
+               title: "Error",
+               description: `Error al crear el cliente: ${clienteCreateError.message}`,
+               variant: "destructive",
+             });
+             return;
+           } else {
+             console.log('✅ Cliente creado exitosamente');
+           }
+         }
+      }
+
+             // Solo mostrar el toast de éxito si no hubo errores
+       // Si ya se mostró un toast de error, no mostrar el de éxito
+       if (!clienteCreateError) {
+         toast({
+           title: "Usuario actualizado",
+           description: "El usuario fue actualizado exitosamente",
+         });
+
+         // Reset form and reload
+         setFormData({
+           email: "",
+           password: "",
+           nombre: "",
+           role: "cliente",
+           tier_id: "none",
+           marca_id: "none",
+           vendedor_id: "none",
+         });
+         setShowEditDialog(false);
+         setEditingUser(null);
+         
+         // Esperar un momento antes de recargar
+         setTimeout(() => {
+           loadUsers();
+         }, 500);
+       }
+     } catch (error: any) {
+       console.error("❌ Error updating user:", error);
+       toast({
+         title: "Error",
+         description: `Error al actualizar el usuario: ${error.message}`,
+         variant: "destructive",
+       });
+     }
+   };
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este usuario?")) return;
@@ -676,7 +830,7 @@ const Users = () => {
                     <TableHead>Rol</TableHead>
                     <TableHead>Tier</TableHead>
                     <TableHead>Asignación</TableHead>
-                    <TableHead>Fecha Creación</TableHead>
+                    <TableHead>Vendedor</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -711,7 +865,11 @@ const Users = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {user.role === "cliente" && user.vendedor ? (
+                          <div className="font-medium">{user.vendedor.nombre}</div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -862,6 +1020,32 @@ const Users = () => {
                   </p>
                 </div>
 
+                {formData.role === "cliente" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="vendedor_id">Vendedor</Label>
+                    <Select 
+                      name="vendedor_id"
+                      value={formData.vendedor_id} 
+                      onValueChange={(value) => setFormData({ ...formData, vendedor_id: value })}
+                    >
+                      <SelectTrigger id="vendedor_id">
+                        <SelectValue placeholder="Seleccionar vendedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin vendedor</SelectItem>
+                        {vendedores.map((vendedor) => (
+                          <SelectItem key={vendedor.id} value={vendedor.id}>
+                            {vendedor.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Selecciona el vendedor asignado para este cliente
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => {
                     setShowCreateForm(false);
@@ -944,10 +1128,11 @@ const Users = () => {
                   name="edit-role"
                   value={formData.role} 
                   onValueChange={(value) => {
-                    // Si se selecciona admin o superadmin, bloquear tier y establecer como "none"
+                    // Si se selecciona admin o superadmin, bloquear tier y vendedor y establecer como "none"
                     const newFormData = { ...formData, role: value };
                     if (value === "admin" || value === "superadmin") {
                       newFormData.tier_id = "none";
+                      newFormData.vendedor_id = "none";
                     }
                     setFormData(newFormData);
                   }}
@@ -1013,6 +1198,32 @@ const Users = () => {
                   Selecciona la marca asignada para este usuario
                 </p>
               </div>
+
+              {formData.role === "cliente" && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-vendedor_id">Vendedor</Label>
+                  <Select 
+                    name="edit-vendedor_id"
+                    value={formData.vendedor_id} 
+                    onValueChange={(value) => setFormData({ ...formData, vendedor_id: value })}
+                  >
+                    <SelectTrigger id="edit-vendedor_id">
+                      <SelectValue placeholder="Seleccionar vendedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin vendedor</SelectItem>
+                      {vendedores.map((vendedor) => (
+                        <SelectItem key={vendedor.id} value={vendedor.id}>
+                          {vendedor.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecciona el vendedor asignado para este cliente
+                  </p>
+                </div>
+              )}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>

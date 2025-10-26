@@ -270,19 +270,6 @@ const Layout = ({ children }: LayoutProps) => {
                   </SidebarMenuItem>
                 )}
 
-                {/* Clientes - Only Superadmin */}
-                {userRole === "superadmin" && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => navigate("/clientes")}
-                      isActive={location.pathname === "/clientes"}
-                    >
-                      <UserCheck className="h-4 w-4" />
-                      <span>Clientes</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-
                 {/* Pedidos - All users */}
                 <SidebarMenuItem>
                   <SidebarMenuButton 
