@@ -556,45 +556,46 @@ const Pedidos = () => {
       const cliente = pedido.clientes?.nombre || 'N/A';
       const vendedor = pedido.vendedores?.nombre || 'N/A';
       
-      if (pedido.items_pedido && pedido.items_pedido.length > 0) {
-        for (const item of pedido.items_pedido) {
-          const sku = item.productos?.sku || 'N/A';
-          const precio = item.precio_unitario || 0;
-          
-          // Obtener información adicional del producto para pedidos finalizados
-          let xfd = '';
-          let fechaDespacho = '';
-          
-          // Para ambos tipos, obtener XFD y fecha_despacho del producto
-          if (item.productos) {
-            const producto = item.productos;
-            
-            // Formatear xfd
-            if (producto.xfd) {
-              if (producto.xfd instanceof Date) {
-                xfd = producto.xfd.toLocaleDateString('es-ES');
-              } else if (typeof producto.xfd === 'string') {
-                try {
-                  xfd = new Date(producto.xfd).toLocaleDateString('es-ES');
-                } catch (e) {
-                  xfd = producto.xfd;
-                }
-              }
-            }
-            
-            // Formatear fecha_despacho
-            if (producto.fecha_despacho) {
-              if (producto.fecha_despacho instanceof Date) {
-                fechaDespacho = producto.fecha_despacho.toLocaleDateString('es-ES');
-              } else if (typeof producto.fecha_despacho === 'string') {
-                try {
-                  fechaDespacho = new Date(producto.fecha_despacho).toLocaleDateString('es-ES');
-                } catch (e) {
-                  fechaDespacho = producto.fecha_despacho;
-                }
-              }
-            }
-          }
+             if (pedido.items_pedido && pedido.items_pedido.length > 0) {
+         for (const item of pedido.items_pedido) {
+           const sku = item.productos?.sku || 'N/A';
+           const rubro = item.productos?.rubro || 'N/A';
+           const precio = item.precio_unitario || 0;
+           
+           // Obtener información adicional del producto para pedidos finalizados
+           let xfd = '';
+           let fechaDespacho = '';
+           
+           // Para ambos tipos, obtener XFD y fecha_despacho del producto
+           if (item.productos) {
+             const producto = item.productos;
+             
+             // Formatear xfd
+             if (producto.xfd) {
+               if (producto.xfd instanceof Date) {
+                 xfd = producto.xfd.toLocaleDateString('es-ES');
+               } else if (typeof producto.xfd === 'string') {
+                 try {
+                   xfd = new Date(producto.xfd).toLocaleDateString('es-ES');
+                 } catch (e) {
+                   xfd = producto.xfd;
+                 }
+               }
+             }
+             
+             // Formatear fecha_despacho
+             if (producto.fecha_despacho) {
+               if (producto.fecha_despacho instanceof Date) {
+                 fechaDespacho = producto.fecha_despacho.toLocaleDateString('es-ES');
+               } else if (typeof producto.fecha_despacho === 'string') {
+                 try {
+                   fechaDespacho = new Date(producto.fecha_despacho).toLocaleDateString('es-ES');
+                 } catch (e) {
+                   fechaDespacho = producto.fecha_despacho;
+                 }
+               }
+             }
+           }
           
           // Si es un carrito sin confirmar, obtener talles desde localStorage
           if (tipo === 'carritos') {
@@ -611,6 +612,7 @@ const Pedidos = () => {
                   if (Number(cantidad) > 0) {
                     datosExcel.push({
                       'SKU': sku,
+                      'Rubro': rubro,
                       'Talla': talla,
                       'Cantidad por talla': cantidad,
                       'Precio por SKU': precio,
@@ -625,6 +627,7 @@ const Pedidos = () => {
                 // Si no hay talles, agregar una fila con la cantidad total
                 datosExcel.push({
                   'SKU': sku,
+                  'Rubro': rubro,
                   'Talla': 'Todas',
                   'Cantidad por talla': item.cantidad || 0,
                   'Precio por SKU': precio,
