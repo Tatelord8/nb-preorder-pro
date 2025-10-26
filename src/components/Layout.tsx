@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { CartStorageService } from "@/services/cart-storage.service";
 import { 
   Sidebar, 
   SidebarContent, 
@@ -112,30 +113,20 @@ const Layout = ({ children }: LayoutProps) => {
       return;
     }
 
-    // Load cart from user-specific storage
-    const userCartKey = `cartItems_${session.user.id}`;
-    const savedCartItems = localStorage.getItem(userCartKey);
-    if (savedCartItems) {
-      const cartItems = JSON.parse(savedCartItems);
-      setCart(cartItems);
-    } else {
-      // Si no hay items en el carrito, limpiar el estado
-      setCart([]);
-    }
+    // Load cart using CartStorageService
+    const cartItems = CartStorageService.getCart(session.user.id);
+    setCart(cartItems);
   };
 
   const handleLogout = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      // Clear user-specific cart
-      const userCartItemsKey = `cartItems_${session.user.id}`;
-      const userCartKey = `cart_${session.user.id}`;
-      localStorage.removeItem(userCartItemsKey);
-      localStorage.removeItem(userCartKey);
+      // Clear cart using CartStorageService
+      CartStorageService.clearCart(session.user.id);
     }
-    
+
     setCart([]);
-    
+
     await supabase.auth.signOut();
     navigate("/login");
   };
