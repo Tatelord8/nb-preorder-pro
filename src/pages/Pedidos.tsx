@@ -545,6 +545,45 @@ const Pedidos = () => {
     setReporteCarritosData(reporte);
   };
 
+  const calcularEstadisticasCarrito = (carrito: PedidoFinalizado) => {
+    const calzados = {
+      skus: new Set<string>(),
+      cantidadTotal: 0
+    };
+    const prendas = {
+      skus: new Set<string>(),
+      cantidadTotal: 0
+    };
+
+    if (carrito.items_pedido && carrito.items_pedido.length > 0) {
+      carrito.items_pedido.forEach((item) => {
+        const producto = (item as any).productos || (item as any).producto;
+        const rubro = producto?.rubro;
+        
+        if (rubro && producto?.sku) {
+          if (rubro.toLowerCase() === 'calzados') {
+            calzados.skus.add(producto.sku);
+            calzados.cantidadTotal += item.cantidad;
+          } else if (rubro.toLowerCase() === 'prendas') {
+            prendas.skus.add(producto.sku);
+            prendas.cantidadTotal += item.cantidad;
+          }
+        }
+      });
+    }
+
+    return {
+      calzados: {
+        skusCount: calzados.skus.size,
+        cantidadTotal: calzados.cantidadTotal
+      },
+      prendas: {
+        skusCount: prendas.skus.size,
+        cantidadTotal: prendas.cantidadTotal
+      }
+    };
+  };
+
   const exportarAExcel = async (tipo: 'finalizados' | 'carritos') => {
     const pedidos = tipo === 'finalizados' ? pedidosFinalizados : carritosSinConfirmar;
     const tipoNombre = tipo === 'finalizados' ? 'Pedidos_Finalizados' : 'Carritos_Sin_Confirmar';
@@ -610,12 +649,15 @@ const Pedidos = () => {
                 // Agregar una fila por cada talla
                 Object.entries(cartItem.talles).forEach(([talla, cantidad]) => {
                   if (Number(cantidad) > 0) {
+                    const cantidadNum = Number(cantidad);
+                    const subtotal = precio * cantidadNum;
                     datosExcel.push({
                       'SKU': sku,
                       'Rubro': rubro,
                       'Talla': talla,
-                      'Cantidad por talla': cantidad,
+                      'Cantidad por talla': cantidadNum,
                       'Precio por SKU': precio,
+                      'Subtotal': subtotal,
                       'Vendedor': vendedor,
                       'Cliente': cliente,
                       'XFD': xfd,
@@ -625,12 +667,15 @@ const Pedidos = () => {
                 });
               } else {
                 // Si no hay talles, agregar una fila con la cantidad total
+                const cantidadTotal = item.cantidad || 0;
+                const subtotal = precio * cantidadTotal;
                 datosExcel.push({
                   'SKU': sku,
                   'Rubro': rubro,
                   'Talla': 'Todas',
-                  'Cantidad por talla': item.cantidad || 0,
+                  'Cantidad por talla': cantidadTotal,
                   'Precio por SKU': precio,
+                  'Subtotal': subtotal,
                   'Vendedor': vendedor,
                   'Cliente': cliente,
                   'XFD': xfd,
@@ -640,11 +685,15 @@ const Pedidos = () => {
             }
           } else {
             // Para pedidos finalizados, agregar la fila con la información disponible
+            const cantidadTotal = item.cantidad || 0;
+            const subtotal = precio * cantidadTotal;
             datosExcel.push({
               'SKU': sku,
+              'Rubro': rubro,
               'Talla': 'Todas',
-              'Cantidad por talla': item.cantidad || 0,
+              'Cantidad por talla': cantidadTotal,
               'Precio por SKU': precio,
+              'Subtotal': subtotal,
               'Vendedor': vendedor,
               'Cliente': cliente,
               'XFD': xfd,
@@ -944,35 +993,60 @@ const Pedidos = () => {
             )}
 
             <div className="space-y-4">
-              {carritosSinConfirmar.map((carrito) => (
-                <Card key={carrito.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <ShoppingCart className="h-5 w-5" />
-                          Carrito #{carrito.id.slice(-8)}
-                        </CardTitle>
-                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(carrito.created_at).toLocaleDateString('es-ES')}
+              {carritosSinConfirmar.map((carrito) => {
+                const estadisticas = calcularEstadisticasCarrito(carrito);
+                return (
+                  <Card key={carrito.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {carrito.clientes && carrito.clientes.nombre}
+                          </CardTitle>
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <ShoppingCart className="h-4 w-4" />
+                              Carrito #{carrito.id.slice(-8)}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(carrito.created_at).toLocaleDateString('es-ES')}
+                            </div>
+                            {carrito.vendedores && <div>Vendedor: {carrito.vendedores.nombre}</div>}
                           </div>
-                          {carrito.clientes && <div>Cliente: {carrito.clientes.nombre}</div>}
-                          {carrito.vendedores && <div>Vendedor: {carrito.vendedores.nombre}</div>}
+                          <div className="mt-3 space-y-2">
+                            <div>
+                              <span className="font-semibold text-sm">Calzados:</span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                {estadisticas.calzados.skusCount} SKUs
+                              </span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                ({estadisticas.calzados.cantidadTotal} unidades)
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-sm">Prendas:</span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                {estadisticas.prendas.skusCount} SKUs
+                              </span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                ({estadisticas.prendas.cantidadTotal} unidades)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge variant="outline">{carrito.estado}</Badge>
+                          <div className="flex items-center gap-1 text-lg font-semibold">
+                            <DollarSign className="h-5 w-5" />
+                            {carrito.total_usd.toFixed(2)}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{carrito.estado}</Badge>
-                        <div className="flex items-center gap-1 text-lg font-semibold">
-                          <DollarSign className="h-5 w-5" />
-                          {carrito.total_usd.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
+                    </CardHeader>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>

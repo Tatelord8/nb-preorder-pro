@@ -23,6 +23,7 @@ interface ProductoDetalle {
   linea: string;
   categoria: string;
   genero: string;
+  imagen_url?: string;
 }
 
 const Cart = () => {
@@ -45,17 +46,73 @@ const Cart = () => {
     }
 
     // Load cliente info
+    // First get the user_role to get the relationship
     const { data: userRole } = await supabase
       .from("user_roles")
-      .select("cliente_id, clientes(nombre, tier, vendedor_id, vendedores(nombre))")
+      .select("*")
       .eq("user_id", session.user.id)
       .single();
 
     if (userRole) {
-      setClienteInfo(userRole);
+      // If role is cliente, user_id points to the cliente.id
+      // If role is admin/superadmin, client_id is the reference
+      let clienteData;
+      
+      if (userRole.role === 'cliente') {
+        // For clients, user_id IS the cliente.id
+        const { data: cliente } = await supabase
+          .from("clientes")
+          .select("id, nombre, tier, vendedor_id")
+          .eq("id", userRole.user_id)
+          .single();
+        
+        clienteData = cliente;
+
+        // Fetch vendedor name separately
+        if (cliente?.vendedor_id) {
+          const { data: vendedor } = await supabase
+            .from("vendedores")
+            .select("nombre")
+            .eq("id", cliente.vendedor_id)
+            .single();
+          
+          if (vendedor) {
+            clienteData = { ...clienteData, vendedores: vendedor };
+          }
+        }
+      } else if (userRole.cliente_id) {
+        // For other roles with cliente_id
+        const { data: cliente } = await supabase
+          .from("clientes")
+          .select("id, nombre, tier, vendedor_id")
+          .eq("id", userRole.cliente_id)
+          .single();
+        
+        clienteData = cliente;
+
+        // Fetch vendedor name separately
+        if (cliente?.vendedor_id) {
+          const { data: vendedor } = await supabase
+            .from("vendedores")
+            .select("nombre")
+            .eq("id", cliente.vendedor_id)
+            .single();
+          
+          if (vendedor) {
+            clienteData = { ...clienteData, vendedores: vendedor };
+          }
+        }
+      }
+
+      setClienteInfo({
+        ...userRole,
+        clientes: clienteData
+      });
     }
 
-    const items = JSON.parse(localStorage.getItem("cartItems") || "[]");
+    // Load cart items specific to this user's UUID
+    const userCartKey = `cartItems_${session.user.id}`;
+    const items = JSON.parse(localStorage.getItem(userCartKey) || "[]");
     setCartItems(items);
 
     // Load product details
@@ -63,7 +120,7 @@ const Cart = () => {
     if (productIds.length > 0) {
       const { data } = await supabase
         .from("productos")
-        .select("id, sku, nombre, precio_usd, linea, categoria, genero")
+        .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url")
         .in("id", productIds);
 
       if (data) {
@@ -110,17 +167,28 @@ const Cart = () => {
 
       const { data: userRole } = await supabase
         .from("user_roles")
-        .select("cliente_id")
+        .select("*")
         .eq("user_id", session.user.id)
         .single();
 
       if (!userRole) return;
 
+      // Determine the cliente_id based on the role
+      let clienteIdForPedido;
+      
+      if (userRole.role === 'cliente') {
+        // For clients, user_id IS the cliente.id
+        clienteIdForPedido = userRole.user_id;
+      } else {
+        // For other roles, use cliente_id if it exists
+        clienteIdForPedido = userRole.cliente_id;
+      }
+
       // Create order with estado = 'autorizado' (pedido finalizado)
       const { data: pedido, error: pedidoError } = await supabase
         .from("pedidos")
         .insert({
-          cliente_id: userRole.cliente_id,
+          cliente_id: clienteIdForPedido,
           vendedor_id: clienteInfo?.clientes?.vendedor_id,
           total_usd: calculateTotal(),
           estado: 'autorizado',
@@ -152,9 +220,7 @@ const Cart = () => {
       // Generate Excel
       generateExcel(pedido.id);
 
-      // Clear cart - tanto general como específico del usuario
-      localStorage.removeItem("cart");
-      localStorage.removeItem("cartItems");
+      // Clear cart - específico del usuario
       const userCartItemsKey = `cartItems_${session.user.id}`;
       const userCartKey = `cart_${session.user.id}`;
       localStorage.removeItem(userCartItemsKey);
@@ -220,11 +286,18 @@ const Cart = () => {
   };
 
   const handleRemoveItem = async (index: number) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
     const updatedCartItems = [...cartItems];
     const removedItem = updatedCartItems.splice(index, 1)[0];
     
-    // Update cart array (product IDs)
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    // Get user-specific cart keys
+    const userCartItemsKey = `cartItems_${session.user.id}`;
+    const userCartKey = `cart_${session.user.id}`;
+    
+    // Update cart array (product IDs) for this specific user
+    const cart = JSON.parse(localStorage.getItem(userCartKey) || "[]");
     const remainingItemsForProduct = updatedCartItems.filter(
       item => item.productoId === removedItem.productoId
     );
@@ -241,24 +314,14 @@ const Cart = () => {
       }
     }
     
-    // Guardar en carrito general
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
-    
     // Guardar en carrito específico del usuario
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const userCartItemsKey = `cartItems_${session.user.id}`;
-      const userCartKey = `cart_${session.user.id}`;
-      
+    if (updatedCartItems.length === 0) {
       // Si el carrito quedó vacío, eliminar las claves
-      if (updatedCartItems.length === 0) {
-        localStorage.removeItem(userCartItemsKey);
-        localStorage.removeItem(userCartKey);
-      } else {
-        localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
-        localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
-      }
+      localStorage.removeItem(userCartItemsKey);
+      localStorage.removeItem(userCartKey);
+    } else {
+      localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
+      localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
     }
     
     // Disparar evento personalizado para notificar al Layout
@@ -302,7 +365,10 @@ const Cart = () => {
             <Card className="p-6">
               <h2 className="font-semibold mb-2">Información del Cliente</h2>
               <p className="text-sm text-muted-foreground">
-                {clienteInfo?.clientes?.nombre} - Vendedor: {clienteInfo?.clientes?.vendedores?.nombre}
+                Cliente: {clienteInfo?.clientes?.nombre}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Vendedor: {clienteInfo?.clientes?.vendedores?.nombre || 'Sin asignar'}
               </p>
             </Card>
 
@@ -314,21 +380,32 @@ const Cart = () => {
                 return (
                   <Card key={index} className="p-6">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-start">
+                      <div className="flex gap-4">
+                        {producto.imagen_url && (
+                          <img 
+                            src={producto.imagen_url} 
+                            alt={producto.nombre}
+                            className="w-20 h-20 object-cover rounded-md"
+                          />
+                        )}
                         <div className="flex-1">
-                          <h3 className="font-semibold">{producto.nombre}</h3>
-                          <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <p className="font-bold">USD ${producto.precio_usd}</p>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveItem(index)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h3 className="font-semibold">{producto.nombre}</h3>
+                              <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <p className="font-bold">USD ${producto.precio_usd}</p>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveItem(index)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
