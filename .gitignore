@@ -44,3 +44,5 @@ Desktop.ini
 
 # Netlify
 .netlify
+nul
+.claude/settings.local.json
