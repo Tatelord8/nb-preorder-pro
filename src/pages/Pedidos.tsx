@@ -34,6 +34,8 @@ interface PedidoFinalizado {
       sku: string;
       nombre: string;
       rubro: string;
+      xfd?: string | Date;
+      fecha_despacho?: string | Date;
     };
   }>;
 }
@@ -97,25 +99,43 @@ const Pedidos = () => {
 
       setUserRole(userRoleData?.role || null);
 
-             if (userRoleData?.role === 'superadmin') {
-         // Cargar pedidos finalizados (estado 'autorizado' o 'completado')
-         const { data: pedidosData, error: pedidosError } = await supabase
-           .from("pedidos")
-           .select(`
-             *,
-             clientes(nombre, tier),
-             vendedores(nombre),
-             items_pedido(
-               *,
-               productos(sku, nombre, rubro)
-             )
-           `)
-           .in('estado', ['autorizado', 'completado'])
-           .order('created_at', { ascending: false });
+                           if (userRoleData?.role === 'superadmin') {
+          // Cargar pedidos finalizados (estado 'autorizado' o 'completado')
+          const { data: pedidosData, error: pedidosError } = await supabase
+            .from("pedidos")
+            .select(`
+              *,
+              clientes(nombre, tier),
+              vendedores(nombre),
+              items_pedido(
+                *,
+                productos(sku, nombre, rubro, xfd, fecha_despacho)
+              )
+            `)
+            .in('estado', ['autorizado', 'completado'])
+            .order('created_at', { ascending: false });
 
-         if (pedidosError) throw pedidosError;
-
-         setPedidosFinalizados(pedidosData || []);
+                   if (pedidosError) throw pedidosError;
+          
+          console.log('📋 Pedidos finalizados cargados:', pedidosData);
+          console.log('📊 Cantidad de pedidos finalizados:', pedidosData?.length || 0);
+          
+          // Debug: verificar que los productos tienen xfd y fecha_despacho
+          if (pedidosData && pedidosData.length > 0) {
+            const primerPedido = pedidosData[0];
+            console.log('📦 Primer pedido:', primerPedido);
+            if (primerPedido.items_pedido && primerPedido.items_pedido.length > 0) {
+              const primerItem = primerPedido.items_pedido[0];
+              console.log('📦 Primer item:', primerItem);
+              if (primerItem.productos) {
+                console.log('📦 Producto del primer item:', primerItem.productos);
+                console.log('📦 xfd:', primerItem.productos.xfd);
+                console.log('📦 fecha_despacho:', primerItem.productos.fecha_despacho);
+              }
+            }
+          }
+          
+          setPedidosFinalizados(pedidosData || []);
 
          // Obtener todos los usuarios válidos
          const { data: allUsers } = await supabase
@@ -177,7 +197,7 @@ const Pedidos = () => {
                         if (item.productoId && !productosInfo.has(item.productoId)) {
                           const { data: producto } = await supabase
                             .from("productos")
-                            .select("id, sku, nombre, rubro, precio_usd")
+                            .select("id, sku, nombre, rubro, precio_usd, xfd, fecha_despacho")
                             .eq("id", item.productoId)
                             .single();
                           
@@ -197,19 +217,9 @@ const Pedidos = () => {
                           cantidadTotal = Object.values(item.talles).reduce((sum: number, cant: any) => sum + (Number(cant) || 0), 0);
                         }
                         
-                        const precio = item.precio_usd || productoInfo?.precio_usd || 0;
-                        
-                        console.log('📦 Item mapeado:', {
-                          productoId: item.productoId,
-                          productoSku: productoInfo?.sku,
-                          cantidadOriginal: item.cantidad,
-                          cantidadCurvas: item.cantidadCurvas,
-                          talles: item.talles,
-                          cantidadTotal: cantidadTotal,
-                          precio: precio
-                        });
-                        
-                        return {
+                                                 const precio = item.precio_usd || productoInfo?.precio_usd || 0;
+                         
+                         return {
                           producto_id: item.productoId,
                           cantidad: cantidadTotal,
                           precio_unitario: precio,
@@ -217,7 +227,9 @@ const Pedidos = () => {
                           productos: productoInfo ? {
                             sku: productoInfo.sku,
                             nombre: productoInfo.nombre,
-                            rubro: productoInfo.rubro
+                            rubro: productoInfo.rubro,
+                            xfd: productoInfo.xfd,
+                            fecha_despacho: productoInfo.fecha_despacho
                           } : undefined
                         };
                       });
@@ -255,24 +267,24 @@ const Pedidos = () => {
          // Generar reportes
          generarReporte(pedidosData || []);
          generarReporteCarritos(carritosEncontrados);
-      } else {
-        // Para otros roles, cargar solo sus pedidos
-        const { data: pedidosData, error: pedidosError } = await supabase
-          .from("pedidos")
-          .select(`
-            *,
-            clientes(nombre, tier),
-            vendedores(nombre),
-            items_pedido(
-              *,
-              productos(sku, nombre, rubro)
-            )
-          `)
-          .order('created_at', { ascending: false });
+             } else {
+         // Para otros roles, cargar solo sus pedidos
+         const { data: pedidosData, error: pedidosError } = await supabase
+           .from("pedidos")
+           .select(`
+             *,
+             clientes(nombre, tier),
+             vendedores(nombre),
+             items_pedido(
+               *,
+               productos(sku, nombre, rubro, xfd, fecha_despacho)
+             )
+           `)
+           .order('created_at', { ascending: false });
 
-        if (pedidosError) throw pedidosError;
-        setPedidosFinalizados(pedidosData || []);
-      }
+         if (pedidosError) throw pedidosError;
+         setPedidosFinalizados(pedidosData || []);
+       }
     } catch (error) {
       console.error("Error loading pedidos:", error);
       toast({
@@ -553,30 +565,33 @@ const Pedidos = () => {
           let xfd = '';
           let fechaDespacho = '';
           
-          if (tipo === 'finalizados' && item.producto_id) {
-            const { data: productoCompleto, error: productoError } = await supabase
-              .from('productos')
-              .select('xfd, fecha_despacho')
-              .eq('id', item.producto_id)
-              .maybeSingle();
+          // Para ambos tipos, obtener XFD y fecha_despacho del producto
+          if (item.productos) {
+            const producto = item.productos;
             
-            if (productoError) {
-              console.error('Error fetching producto:', productoError);
-            }
-            
-            if (productoCompleto) {
-              // Formatear xfd si es una fecha
-              if (productoCompleto.xfd) {
-                if (typeof productoCompleto.xfd === 'string') {
-                  xfd = productoCompleto.xfd;
-                } else {
-                  xfd = new Date(productoCompleto.xfd).toLocaleDateString('es-ES');
+            // Formatear xfd
+            if (producto.xfd) {
+              if (producto.xfd instanceof Date) {
+                xfd = producto.xfd.toLocaleDateString('es-ES');
+              } else if (typeof producto.xfd === 'string') {
+                try {
+                  xfd = new Date(producto.xfd).toLocaleDateString('es-ES');
+                } catch (e) {
+                  xfd = producto.xfd;
                 }
               }
-              
-              // Formatear fecha_despacho
-              if (productoCompleto.fecha_despacho) {
-                fechaDespacho = new Date(productoCompleto.fecha_despacho).toLocaleDateString('es-ES');
+            }
+            
+            // Formatear fecha_despacho
+            if (producto.fecha_despacho) {
+              if (producto.fecha_despacho instanceof Date) {
+                fechaDespacho = producto.fecha_despacho.toLocaleDateString('es-ES');
+              } else if (typeof producto.fecha_despacho === 'string') {
+                try {
+                  fechaDespacho = new Date(producto.fecha_despacho).toLocaleDateString('es-ES');
+                } catch (e) {
+                  fechaDespacho = producto.fecha_despacho;
+                }
               }
             }
           }
@@ -601,8 +616,8 @@ const Pedidos = () => {
                       'Precio por SKU': precio,
                       'Vendedor': vendedor,
                       'Cliente': cliente,
-                      'XFD': '',
-                      'Fecha de Despacho': ''
+                      'XFD': xfd,
+                      'Fecha de Despacho': fechaDespacho
                     });
                   }
                 });
@@ -615,8 +630,8 @@ const Pedidos = () => {
                   'Precio por SKU': precio,
                   'Vendedor': vendedor,
                   'Cliente': cliente,
-                  'XFD': '',
-                  'Fecha de Despacho': ''
+                  'XFD': xfd,
+                  'Fecha de Despacho': fechaDespacho
                 });
               }
             }
@@ -799,14 +814,14 @@ const Pedidos = () => {
                           <Package className="h-5 w-5" />
                           Pedido #{pedido.id.slice(-8)}
                         </CardTitle>
-                        <CardDescription className="mt-2 space-y-1">
-                          <p className="flex items-center gap-1">
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {new Date(pedido.created_at).toLocaleDateString('es-ES')}
-                          </p>
-                          {pedido.clientes && <p>Cliente: {pedido.clientes.nombre}</p>}
-                          {pedido.vendedores && <p>Vendedor: {pedido.vendedores.nombre}</p>}
-                        </CardDescription>
+                          </div>
+                          {pedido.clientes && <div>Cliente: {pedido.clientes.nombre}</div>}
+                          {pedido.vendedores && <div>Vendedor: {pedido.vendedores.nombre}</div>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge>{pedido.estado}</Badge>
@@ -935,14 +950,14 @@ const Pedidos = () => {
                           <ShoppingCart className="h-5 w-5" />
                           Carrito #{carrito.id.slice(-8)}
                         </CardTitle>
-                        <CardDescription className="mt-2 space-y-1">
-                          <p className="flex items-center gap-1">
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {new Date(carrito.created_at).toLocaleDateString('es-ES')}
-                          </p>
-                          {carrito.clientes && <p>Cliente: {carrito.clientes.nombre}</p>}
-                          {carrito.vendedores && <p>Vendedor: {carrito.vendedores.nombre}</p>}
-                        </CardDescription>
+                          </div>
+                          {carrito.clientes && <div>Cliente: {carrito.clientes.nombre}</div>}
+                          {carrito.vendedores && <div>Vendedor: {carrito.vendedores.nombre}</div>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{carrito.estado}</Badge>
@@ -968,9 +983,9 @@ const Pedidos = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>Pedido #{pedido.id.slice(-8)}</CardTitle>
-                      <CardDescription>
+                      <div className="text-sm text-muted-foreground">
                         {new Date(pedido.created_at).toLocaleDateString('es-ES')}
-                      </CardDescription>
+                      </div>
                     </div>
                     <Badge>{pedido.estado}</Badge>
                   </div>
