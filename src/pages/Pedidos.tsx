@@ -876,7 +876,11 @@ const Pedidos = () => {
                               <Calendar className="h-4 w-4" />
                               {new Date(pedido.created_at).toLocaleDateString('es-ES')}
                             </div>
-                            {pedido.vendedores && <div>Vendedor: {pedido.vendedores.nombre}</div>}
+                            {pedido.vendedores ? (
+                              <div>Vendedor: {pedido.vendedores.nombre}</div>
+                            ) : (
+                              <div className="text-muted-foreground">Sin vendedor asignado</div>
+                            )}
                           </div>
                           <div className="mt-3 space-y-2">
                             <div>
@@ -1037,7 +1041,11 @@ const Pedidos = () => {
                               <Calendar className="h-4 w-4" />
                               {new Date(carrito.created_at).toLocaleDateString('es-ES')}
                             </div>
-                            {carrito.vendedores && <div>Vendedor: {carrito.vendedores.nombre}</div>}
+                            {carrito.vendedores ? (
+                              <div>Vendedor: {carrito.vendedores.nombre}</div>
+                            ) : (
+                              <div className="text-muted-foreground">Sin vendedor asignado</div>
+                            )}
                           </div>
                           <div className="mt-3 space-y-2">
                             <div>
