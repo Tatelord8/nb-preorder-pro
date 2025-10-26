@@ -61,12 +61,19 @@ interface Tier {
   descripcion?: string;
 }
 
+interface Vendedor {
+  id: string;
+  nombre: string;
+  email?: string;
+}
+
 const Users = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [tiers, setTiers] = useState<Tier[]>([]);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
@@ -82,6 +89,7 @@ const Users = () => {
     role: "cliente",
     tier_id: "none",
     marca_id: "none",
+    vendedor_id: "none",
   });
 
   useEffect(() => {
@@ -89,6 +97,7 @@ const Users = () => {
     loadUsers();
     loadMarcas();
     loadTiers();
+    loadVendedores();
   }, []);
 
   // Reset form when create form is opened
@@ -101,6 +110,7 @@ const Users = () => {
         role: "cliente",
         tier_id: "none",
         marca_id: "none",
+        vendedor_id: "none",
       });
     }
   }, [showCreateForm]);
@@ -276,30 +286,95 @@ const Users = () => {
     }
 
     try {
-      // Determinar tier_id según el rol
+      // Paso 0: Normalizar email a minúsculas para comparación consistente
+      const normalizedEmail = formData.email.toLowerCase().trim();
+      
+      // Guardar la sesión del superadmin antes de crear el usuario
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        throw new Error('No hay sesión activa');
+      }
+      console.log('🔐 Sesión guardada:', currentSession.user.email);
+      const superadminAccessToken = currentSession.access_token;
+      const superadminRefreshToken = currentSession.refresh_token;
+      
+      // Paso 1: Crear usuario en auth.users usando signUp
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password: formData.password,
+      });
+
+      if (signUpError) {
+        if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists') || signUpError.message?.includes('duplicate')) {
+          throw new Error(`El email ${normalizedEmail} ya está registrado. Verifica la tabla de usuarios.`);
+        }
+        throw signUpError;
+      }
+
+      if (!signUpData.user) {
+        throw new Error('No se pudo crear el usuario');
+      }
+
+      console.log('✅ Usuario creado en auth.users:', signUpData.user.id);
+
+      // Restaurar la sesión del superadmin INMEDIATAMENTE después de crear el usuario
+      console.log('🔄 Restaurando sesión del superadmin...');
+      if (superadminAccessToken && superadminRefreshToken) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: superadminAccessToken,
+          refresh_token: superadminRefreshToken,
+        });
+        if (sessionError) {
+          console.error('❌ Error al restaurar sesión:', sessionError);
+          throw new Error('Error al restaurar sesión de superadmin');
+        }
+        console.log('✅ Sesión restaurada correctamente:', sessionData.session?.user.email);
+        
+        // Verificar que la sesión se haya restaurado correctamente
+        const { data: { session: verifySession } } = await supabase.auth.getSession();
+        console.log('🔍 Sesión verificada:', verifySession?.user.email);
+        
+        if (!verifySession) {
+          throw new Error('No se pudo verificar la sesión restaurada');
+        }
+      }
+
+      // Paso 2: Determinar tier_id según el rol
       let tierId = null;
       if (formData.role !== "admin" && formData.role !== "superadmin" && formData.tier_id && formData.tier_id !== "none") {
         tierId = parseInt(formData.tier_id);
       }
 
-      // Determinar marca_id según la selección
+      // Paso 3: Determinar marca_id según la selección
       let marcaId = null;
       if (formData.marca_id && formData.marca_id !== "none") {
         marcaId = formData.marca_id;
       }
 
-      // Usar función SQL para crear usuario
-      const { data, error } = await supabase.rpc('create_user_with_role' as any, {
-        user_email: formData.email,
-        user_password: formData.password,
-        user_role: formData.role,
-        user_nombre: formData.nombre,
-        user_tier_id: tierId,
-        user_cliente_id: null,
-        user_marca_id: marcaId,
-      });
+      // Paso 4: Crear registro en public.usuarios y user_roles usando la función SQL
+      console.log('📝 Creando usuario completo con función SQL...');
+      const { data: functionResult, error: functionError } = await supabase
+        .rpc('create_user_complete' as any, {
+          p_user_id: signUpData.user.id,
+          p_email: normalizedEmail,
+          p_nombre: formData.nombre,
+          p_role: formData.role,
+          p_tier_id: tierId,
+          p_marca_id: marcaId
+        });
 
-      if (error) throw error;
+      if (functionError) {
+        console.error("❌ Error creating user with function:", functionError);
+        throw new Error(functionError.message || 'No se pudo crear el usuario');
+      }
+
+      const result = functionResult as any;
+      if (result && !result.success) {
+        console.error("❌ Function returned error:", result.error);
+        throw new Error(result.error || 'No se pudo crear el usuario');
+      }
+
+      console.log('✅ Usuario creado exitosamente con función SQL');
 
       toast({
         title: "Usuario creado",
@@ -318,9 +393,10 @@ const Users = () => {
       setShowCreateForm(false);
       loadUsers();
     } catch (error: any) {
+      console.error("Error creating user:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || 'No se pudo crear el usuario',
         variant: "destructive",
       });
     }

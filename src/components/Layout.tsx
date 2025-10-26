@@ -47,6 +47,7 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const [userRole, setUserRole] = useState<string>("");
   const [clientName, setClientName] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
   const [cart, setCart] = useState<any[]>([]);
 
   useEffect(() => {
@@ -85,10 +86,10 @@ const Layout = ({ children }: LayoutProps) => {
       return;
     }
 
-    // Get user role
+    // Get user role and name
     const { data: userRole, error } = await supabase
       .from("user_roles")
-      .select("role, clientes(nombre)")
+      .select("role, nombre, clientes(nombre)")
       .eq("user_id", session.user.id)
       .single();
 
@@ -98,6 +99,7 @@ const Layout = ({ children }: LayoutProps) => {
     if (userRole) {
       console.log("🔍 Debug Layout - Setting userRole to:", userRole.role);
       setUserRole(userRole.role);
+      setUserName(userRole.nombre || "Usuario");
       if (userRole.clientes) {
         setClientName((userRole.clientes as any).nombre);
       }
@@ -328,7 +330,7 @@ const Layout = ({ children }: LayoutProps) => {
                     </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">{clientName || ''}</span>
+                <span className="text-sm font-medium">{userName || clientName || 'Usuario'}</span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 p-2 rounded-full hover:bg-muted transition-colors">
