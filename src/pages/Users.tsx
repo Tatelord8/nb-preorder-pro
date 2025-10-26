@@ -262,6 +262,26 @@ const Users = () => {
     }
   };
 
+  const loadVendedores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("vendedores" as any)
+        .select("*")
+        .order("nombre");
+
+      if (error) {
+        console.error("Error loading vendedores:", error);
+        setVendedores([]);
+        return;
+      }
+
+      setVendedores((data as any) || []);
+    } catch (error) {
+      console.error("Error loading vendedores:", error);
+      setVendedores([]);
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -389,6 +409,7 @@ const Users = () => {
         role: "cliente",
         tier_id: "none",
         marca_id: "none",
+        vendedor_id: "none",
       });
       setShowCreateForm(false);
       loadUsers();
@@ -411,6 +432,7 @@ const Users = () => {
       role: user.role,
       tier_id: user.tier_id?.toString() || "none",
       marca_id: user.marca_id?.toString() || "none",
+      vendedor_id: "none",
     });
     setShowEditDialog(true);
   };
@@ -514,6 +536,7 @@ const Users = () => {
         role: "cliente",
         tier_id: "none",
         marca_id: "none",
+        vendedor_id: "none",
       });
       setShowEditDialog(false);
       setEditingUser(null);
@@ -603,6 +626,7 @@ const Users = () => {
               role: "cliente",
               tier_id: "none",
               marca_id: "none",
+              vendedor_id: "none",
             });
             setShowCreateForm(true);
           }}>
@@ -848,6 +872,7 @@ const Users = () => {
                       role: "cliente",
                       tier_id: "none",
                       marca_id: "none",
+                      vendedor_id: "none",
                     });
                   }}>
                     Cancelar
