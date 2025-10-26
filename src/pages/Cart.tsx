@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
+import { CartStorageService } from "@/services/cart-storage.service";
 
 interface CartItem {
   productoId: string;
@@ -110,9 +111,8 @@ const Cart = () => {
       });
     }
 
-    // Load cart items specific to this user's UUID
-    const userCartKey = `cartItems_${session.user.id}`;
-    const items = JSON.parse(localStorage.getItem(userCartKey) || "[]");
+    // Load cart items using CartStorageService
+    const items = CartStorageService.getCart(session.user.id);
     setCartItems(items);
 
     // Load product details
@@ -220,11 +220,8 @@ const Cart = () => {
       // Generate Excel
       generateExcel(pedido.id);
 
-      // Clear cart - específico del usuario
-      const userCartItemsKey = `cartItems_${session.user.id}`;
-      const userCartKey = `cart_${session.user.id}`;
-      localStorage.removeItem(userCartItemsKey);
-      localStorage.removeItem(userCartKey);
+      // Clear cart using CartStorageService
+      CartStorageService.clearCart(session.user.id);
 
       // Disparar evento personalizado para notificar al Layout
       window.dispatchEvent(new CustomEvent('cartUpdated'));
@@ -289,45 +286,17 @@ const Cart = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const updatedCartItems = [...cartItems];
-    const removedItem = updatedCartItems.splice(index, 1)[0];
-    
-    // Get user-specific cart keys
-    const userCartItemsKey = `cartItems_${session.user.id}`;
-    const userCartKey = `cart_${session.user.id}`;
-    
-    // Update cart array (product IDs) for this specific user
-    const cart = JSON.parse(localStorage.getItem(userCartKey) || "[]");
-    const remainingItemsForProduct = updatedCartItems.filter(
-      item => item.productoId === removedItem.productoId
-    );
-    
-    let updatedCart = cart;
-    if (remainingItemsForProduct.length === 0) {
-      // Asegurar que cart es un array antes de usar filter
-      if (Array.isArray(cart)) {
-        updatedCart = cart.filter((id: string) => id !== removedItem.productoId);
-      } else {
-        // Si cart es un objeto, convertir a array y filtrar
-        const cartArray = Object.keys(cart);
-        updatedCart = cartArray.filter((id: string) => id !== removedItem.productoId);
-      }
-    }
-    
-    // Guardar en carrito específico del usuario
-    if (updatedCartItems.length === 0) {
-      // Si el carrito quedó vacío, eliminar las claves
-      localStorage.removeItem(userCartItemsKey);
-      localStorage.removeItem(userCartKey);
-    } else {
-      localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
-      localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
-    }
-    
+    const removedItem = cartItems[index];
+
+    // Remove item using CartStorageService
+    CartStorageService.removeItem(session.user.id, removedItem.productoId);
+
+    // Update local state
+    const updatedCartItems = cartItems.filter((_, i) => i !== index);
+    setCartItems(updatedCartItems);
+
     // Disparar evento personalizado para notificar al Layout
     window.dispatchEvent(new CustomEvent('cartUpdated'));
-    
-    setCartItems(updatedCartItems);
     
     toast({
       title: "Producto eliminado",

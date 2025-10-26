@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { generateSizes, getSizeInfo, type ProductSizeInfo } from "@/utils/sizeGenerator";
 import { getCurvesForGender, getCurveInfo, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
 import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
+import { CartStorageService } from "@/services/cart-storage.service";
 
 interface Producto {
   id: string;
@@ -118,14 +119,19 @@ const ProductDetail = () => {
     }
   };
 
-  const checkIfInCart = () => {
-    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
-    // El carrito puede ser un objeto { [productId]: quantity } o un array [productId]
-    if (Array.isArray(cart)) {
-      setIsInCart(cart.includes(id));
-    } else if (typeof cart === 'object' && cart !== null) {
-      setIsInCart(cart.hasOwnProperty(id) && cart[id] > 0);
-    } else {
+  const checkIfInCart = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsInCart(false);
+        return;
+      }
+
+      const cartItems = CartStorageService.getCart(session.user.id);
+      const isInCart = cartItems.some(item => item.productoId === id);
+      setIsInCart(isInCart);
+    } catch (error) {
+      console.error('Error checking cart:', error);
       setIsInCart(false);
     }
   };
@@ -213,50 +219,24 @@ const ProductDetail = () => {
       return;
     }
 
-    // Save to cart
-    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
-    const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
-
     const newItem = {
-      productoId: id,
+      productoId: id!,
       curvaId: curvaType === "predefined" ? `predefined-${selectedPredefinedCurve}` : null,
       cantidadCurvas: curvaType === "predefined" ? cantidadCurvas : 1,
       talles: curvaType === "custom" ? customTalles : appliedCurveQuantities,
       type: curvaType,
       genero: producto?.genero,
       opcion: curvaType === "predefined" ? selectedPredefinedCurve : null,
+      precio_usd: producto?.precio_usd,
     };
 
-    // Manejar carrito como objeto { [productId]: quantity }
-    let updatedCart = cart;
-    if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
-      updatedCart = { ...cart };
-      updatedCart[id] = ((updatedCart[id] as number) || 0) + 1;
-    } else {
-      // Si es array, convertir a objeto
-      updatedCart = {};
-      if (Array.isArray(cart)) {
-        cart.forEach((productId: string) => {
-          updatedCart[productId] = ((updatedCart[productId] as number) || 0) + 1;
-        });
-      }
-      updatedCart[id] = ((updatedCart[id] as number) || 0) + 1;
-    }
-    
-    const updatedCartItems = [...cartItems, newItem];
-    
-    // Guardar en localStorage general
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
-    
-    // Guardar también en localStorage específico del usuario
-    const userCartItemsKey = `cartItems_${session.user.id}`;
-    const userCartKey = `cart_${session.user.id}`;
-    localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
-    localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
+    // Usar CartStorageService para agregar al carrito
+    CartStorageService.addItem(session.user.id, newItem);
 
     // Disparar evento personalizado para notificar al Layout
     window.dispatchEvent(new CustomEvent('cartUpdated'));
+
+    setIsInCart(true);
 
     toast({
       title: "Agregado al pedido",
@@ -283,37 +263,8 @@ const ProductDetail = () => {
       return;
     }
 
-    const cart = JSON.parse(localStorage.getItem("cart") || "{}");
-    const cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
-
-    // Manejar carrito como objeto { [productId]: quantity }
-    let updatedCart = cart;
-    if (typeof cart === 'object' && cart !== null && !Array.isArray(cart)) {
-      updatedCart = { ...cart };
-      delete updatedCart[id];
-    } else {
-      // Si es array, convertir a objeto y eliminar
-      updatedCart = {};
-      if (Array.isArray(cart)) {
-        cart.forEach((productId: string) => {
-          if (productId !== id) {
-            updatedCart[productId] = ((updatedCart[productId] as number) || 0) + 1;
-          }
-        });
-      }
-    }
-    
-    const updatedCartItems = cartItems.filter((item: any) => item.productoId !== id);
-    
-    // Guardar en localStorage general
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    localStorage.setItem("cartItems", JSON.stringify(updatedCartItems));
-    
-    // Guardar también en localStorage específico del usuario
-    const userCartItemsKey = `cartItems_${session.user.id}`;
-    const userCartKey = `cart_${session.user.id}`;
-    localStorage.setItem(userCartItemsKey, JSON.stringify(updatedCartItems));
-    localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
+    // Usar CartStorageService para eliminar del carrito
+    CartStorageService.removeItem(session.user.id, id!);
 
     // Disparar evento personalizado para notificar al Layout
     window.dispatchEvent(new CustomEvent('cartUpdated'));
