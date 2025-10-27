@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import type { CartItem } from './cart-storage.service';
+import type { CartItem } from './supabase-cart.service';
 
 export interface Pedido {
   id: string;
@@ -28,7 +28,7 @@ export interface PedidoDetalle {
 }
 
 export interface PedidoConDetalles extends Pedido {
-  pedidos_detalles?: PedidoDetalle[];
+  items_pedido?: PedidoDetalle[];
   clientes?: {
     id: string;
     nombre: string;
@@ -140,7 +140,10 @@ export class PedidosService {
         .from('pedidos')
         .select(`
           *,
-          pedidos_detalles(*),
+          items_pedido(
+            *,
+            productos(id, sku, nombre, rubro, precio_usd)
+          ),
           clientes(id, nombre, tier),
           vendedores(id, nombre)
         `)
@@ -180,7 +183,7 @@ export class PedidosService {
         throw new Error(error.message);
       }
 
-      return data as PedidoConDetalles[] || [];
+      return data as any as PedidoConDetalles[] || [];
     } catch (error) {
       console.error('Error inesperado al obtener pedidos con detalles:', error);
       throw error;
@@ -222,7 +225,10 @@ export class PedidosService {
         .from('pedidos')
         .select(`
           *,
-          pedidos_detalles(*),
+          items_pedido(
+            *,
+            productos(id, sku, nombre, rubro, precio_usd)
+          ),
           clientes(id, nombre, tier),
           vendedores(id, nombre)
         `)
@@ -237,7 +243,7 @@ export class PedidosService {
         throw new Error(error.message);
       }
 
-      return data as PedidoConDetalles;
+      return data as any as PedidoConDetalles;
     } catch (error) {
       console.error('Error inesperado al obtener pedido con detalles por ID:', error);
       throw error;
@@ -286,8 +292,8 @@ export class PedidosService {
       });
 
       const { data: pedidoDetalles, error: detallesError } = await supabase
-        .from('pedidos_detalles')
-        .insert(detalles)
+        .from('items_pedido')
+        .insert(detalles as any)
         .select();
 
       if (detallesError) {
@@ -300,8 +306,8 @@ export class PedidosService {
       // Retornar pedido completo
       return {
         ...pedido,
-        pedidos_detalles: pedidoDetalles,
-      } as PedidoConDetalles;
+        items_pedido: pedidoDetalles,
+      } as any as PedidoConDetalles;
     } catch (error) {
       console.error('Error inesperado al crear pedido:', error);
       throw error;

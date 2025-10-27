@@ -169,22 +169,9 @@ const Login = () => {
           .eq("user_id", data.session.user.id)
           .single();
 
-        // Restaurar carrito específico del usuario
-        const userCartItemsKey = `cartItems_${data.session.user.id}`;
-        const userCartKey = `cart_${data.session.user.id}`;
-        
-        const savedCartItems = localStorage.getItem(userCartItemsKey);
-        const savedCart = localStorage.getItem(userCartKey);
-        
-        if (savedCartItems) {
-          localStorage.setItem("cartItems", savedCartItems);
-        }
-        if (savedCart) {
-          localStorage.setItem("cart", savedCart);
-        }
-        
-        // Disparar evento para actualizar el Layout
-        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        // El carrito ahora se maneja completamente en Supabase
+        // No necesitamos restaurar desde localStorage
+        console.log('✅ Usuario autenticado, carrito se carga desde Supabase');
 
         toast({
           title: "Bienvenido",

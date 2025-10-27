@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { CartStorageService } from "@/services/cart-storage.service";
+import { useSupabaseCart } from "@/hooks/useSupabaseCart";
 import { 
   Sidebar, 
   SidebarContent, 
@@ -36,7 +36,8 @@ import {
   FileText,
   User,
   Settings,
-  ChevronDown
+  ChevronDown,
+  BarChart3
 } from "lucide-react";
 
 interface LayoutProps {
@@ -49,37 +50,15 @@ const Layout = ({ children }: LayoutProps) => {
   const [userRole, setUserRole] = useState<string>("");
   const [clientName, setClientName] = useState<string>("");
   const [userName, setUserName] = useState<string>("");
-  const [cart, setCart] = useState<any[]>([]);
+  const { items: cartItems, loading: cartLoading, totals } = useSupabaseCart();
 
   useEffect(() => {
     checkAuth();
-    loadCart();
-    
-    // Escuchar cambios en localStorage para actualizar el carrito
-    const handleStorageChange = () => {
-      loadCart();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // También escuchar cambios locales del carrito
-    const handleCartChange = () => {
-      loadCart();
-    };
-    
-    // Agregar un listener personalizado para cambios en el carrito
-    window.addEventListener('cartUpdated', handleCartChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('cartUpdated', handleCartChange);
-    };
   }, []);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      setCart([]);
       navigate("/login");
       return;
     }
@@ -136,53 +115,13 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
-  const loadCart = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setCart([]);
-      return;
-    }
-
-    // Load cart using CartStorageService
-    const cartItems = CartStorageService.getCart(session.user.id);
-    setCart(cartItems);
-  };
-
   const handleLogout = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      // Clear cart using CartStorageService
-      CartStorageService.clearCart(session.user.id);
-    }
-
-    setCart([]);
-
     await supabase.auth.signOut();
     navigate("/login");
   };
 
   const getCartCount = () => {
-    // Si cart es un array de CartItems, contar los SKUs únicos
-    if (Array.isArray(cart)) {
-      // Verificar que el array no esté vacío
-      if (cart.length === 0) {
-        console.log("🔍 Debug Cart - Cart is empty");
-        return 0;
-      }
-      
-      // Obtener SKUs únicos del carrito
-      const uniqueSkus = new Set(cart.map((item: any) => item.productoId));
-      console.log("🔍 Debug Cart - Cart items:", cart);
-      console.log("🔍 Debug Cart - Unique SKUs:", Array.from(uniqueSkus));
-      console.log("🔍 Debug Cart - Count:", uniqueSkus.size);
-      return uniqueSkus.size; // Cantidad de SKUs diferentes en el carrito
-    }
-    // Si cart es un objeto, usar la lógica anterior
-    if (cart && typeof cart === 'object') {
-      return Object.values(cart).reduce((sum: number, count: any) => sum + (count as number), 0);
-    }
-    // Si no hay cart o es null/undefined, retornar 0
-    return 0;
+    return totals.totalItems || 0;
   };
 
   // Debug log para verificar el userRole en el render
@@ -292,6 +231,19 @@ const Layout = ({ children }: LayoutProps) => {
                     <span>Pedidos</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                {/* Reportes - Solo Superadmin */}
+                {userRole === "superadmin" && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => navigate("/reportes")}
+                      isActive={location.pathname === "/reportes"}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      <span>Reportes</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -324,7 +276,8 @@ const Layout = ({ children }: LayoutProps) => {
                          location.pathname === "/users" ? "Usuarios" :
                          location.pathname === "/marcas" ? "Marcas" :
                          location.pathname === "/clientes" ? "Clientes" :
-                         location.pathname === "/pedidos" ? "Pedidos" : "Sistema"}
+                         location.pathname === "/pedidos" ? "Pedidos" :
+                         location.pathname === "/reportes" ? "Reportes" : "Sistema"}
                       </p>
                     </div>
               </div>

@@ -15,6 +15,7 @@ import {
   Watch,
   ArrowRight
 } from "lucide-react";
+import { useSupabaseCart } from "@/hooks/useSupabaseCart";
 import { useToast } from "@/hooks/use-toast";
 
 interface Producto {
@@ -41,7 +42,7 @@ const Catalog = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRubro, setSelectedRubro] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string | null>(null);
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const { items: cartItems, loading: cartLoading, isProductInCart } = useSupabaseCart();
 
   useEffect(() => {
     // Cargar tier del usuario al montar el componente
@@ -57,22 +58,8 @@ const Catalog = () => {
     };
     
     initializeCatalog();
-    loadCartItems();
   }, [categoria, searchParams]);
 
-  const loadCartItems = () => {
-    const savedCartItems = localStorage.getItem("cartItems");
-    if (savedCartItems) {
-      const items = JSON.parse(savedCartItems);
-      setCartItems(items);
-    } else {
-      setCartItems([]);
-    }
-  };
-
-  const isProductInCart = (productId: string) => {
-    return cartItems.some(item => item.productoId === productId);
-  };
 
   // Recargar productos cuando cambie el tier del usuario
   useEffect(() => {
@@ -81,18 +68,6 @@ const Catalog = () => {
     }
   }, [userTier]);
 
-  // Escuchar cambios en el carrito
-  useEffect(() => {
-    const handleCartChange = () => {
-      loadCartItems();
-    };
-    
-    window.addEventListener('cartUpdated', handleCartChange);
-    
-    return () => {
-      window.removeEventListener('cartUpdated', handleCartChange);
-    };
-  }, []);
 
   const loadUserTier = async () => {
     try {

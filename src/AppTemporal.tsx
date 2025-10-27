@@ -1,10 +1,11 @@
+// App.tsx temporal para diagnóstico
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import Layout from "@/components/Layout";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import LayoutTemporal from "@/components/LayoutTemporal";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Welcome from "./pages/Welcome";
@@ -18,13 +19,10 @@ import Marcas from "./pages/Marcas";
 import Productos from "./pages/Productos";
 import Clientes from "./pages/Clientes";
 import Pedidos from "./pages/Pedidos";
-import Reportes from "./pages/Reportes";
 import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import SizeGeneratorTest from "./components/SizeGeneratorTest";
-import CurvesTest from "./components/CurvesTest";
 import { queryClient } from "@/lib/queryClient";
 
 const App = () => (
@@ -45,101 +43,92 @@ const App = () => (
           <Route path="/manual-setup" element={<ManualSetup />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/welcome" element={<Welcome />} />
-              <Route path="/catalog" element={
-                <SidebarProvider>
-                  <Layout>
-                    <Catalog />
-                  </Layout>
-                </SidebarProvider>
-              } />
-              <Route path="/catalog/:categoria" element={
-                <SidebarProvider>
-                  <Layout>
-                    <Catalog />
-                  </Layout>
-                </SidebarProvider>
-              } />
-              <Route path="/productos" element={
-                <SidebarProvider>
-                  <Layout>
-                    <Productos />
-                  </Layout>
-                </SidebarProvider>
-              } />
-              <Route path="/clientes" element={
-                <SidebarProvider>
-                  <Layout>
-                    <Clientes />
-                  </Layout>
-                </SidebarProvider>
-              } />
-              <Route path="/pedidos" element={
-                <SidebarProvider>
-                  <Layout>
-                    <Pedidos />
-                  </Layout>
-                </SidebarProvider>
-              } />
+          
+          {/* Rutas con Layout simplificado */}
+          <Route path="/catalog" element={
+            <SidebarProvider>
+              <LayoutTemporal>
+                <Catalog />
+              </LayoutTemporal>
+            </SidebarProvider>
+          } />
+          
+          <Route path="/catalog/:categoria" element={
+            <SidebarProvider>
+              <LayoutTemporal>
+                <Catalog />
+              </LayoutTemporal>
+            </SidebarProvider>
+          } />
+          
+          <Route path="/productos" element={
+            <SidebarProvider>
+              <LayoutTemporal>
+                <Productos />
+              </LayoutTemporal>
+            </SidebarProvider>
+          } />
+          
+          <Route path="/clientes" element={
+            <SidebarProvider>
+              <LayoutTemporal>
+                <Clientes />
+              </LayoutTemporal>
+            </SidebarProvider>
+          } />
+          
+          <Route path="/pedidos" element={
+            <SidebarProvider>
+              <LayoutTemporal>
+                <Pedidos />
+              </LayoutTemporal>
+            </SidebarProvider>
+          } />
+          
           <Route path="/product/:id" element={
             <SidebarProvider>
-              <Layout>
+              <LayoutTemporal>
                 <ProductDetail />
-              </Layout>
+              </LayoutTemporal>
             </SidebarProvider>
           } />
+          
           <Route path="/cart" element={
             <SidebarProvider>
-              <Layout>
+              <LayoutTemporal>
                 <Cart />
-              </Layout>
+              </LayoutTemporal>
             </SidebarProvider>
           } />
+          
           <Route path="/admin" element={<Admin />} />
+          
           {/* Superadmin routes */}
           <Route path="/dashboard" element={
             <SidebarProvider>
-              <Layout>
+              <LayoutTemporal>
                 <Dashboard />
-              </Layout>
+              </LayoutTemporal>
             </SidebarProvider>
           } />
+          
           <Route path="/users" element={
             <SidebarProvider>
-              <Layout>
+              <LayoutTemporal>
                 <Users />
-              </Layout>
+              </LayoutTemporal>
             </SidebarProvider>
           } />
+          
           <Route path="/marcas" element={
             <SidebarProvider>
-              <Layout>
+              <LayoutTemporal>
                 <Marcas />
-              </Layout>
+              </LayoutTemporal>
             </SidebarProvider>
           } />
-          <Route path="/reportes" element={
-            <SidebarProvider>
-              <Layout>
-                <Reportes />
-              </Layout>
-            </SidebarProvider>
-          } />
-          {/* Temporary routes for testing */}
-          <Route path="/test-sizes" element={
-            <SidebarProvider>
-              <Layout>
-                <SizeGeneratorTest />
-              </Layout>
-            </SidebarProvider>
-          } />
-          <Route path="/test-curves" element={
-            <SidebarProvider>
-              <Layout>
-                <CurvesTest />
-              </Layout>
-            </SidebarProvider>
-          } />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

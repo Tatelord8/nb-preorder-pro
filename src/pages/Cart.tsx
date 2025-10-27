@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// Cart.tsx simplificado usando useSupabaseCart
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,14 +7,17 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
-import { CartStorageService } from "@/services/cart-storage.service";
+import { useSupabaseCart } from "@/hooks/useSupabaseCart";
 
 interface CartItem {
   productoId: string;
   curvaId: string | null;
   cantidadCurvas: number;
   talles: Record<string, number>;
-  type: string;
+  type: 'predefined' | 'custom';
+  genero?: string;
+  opcion?: number;
+  precio_usd?: number;
 }
 
 interface ProductoDetalle {
@@ -21,118 +25,76 @@ interface ProductoDetalle {
   sku: string;
   nombre: string;
   precio_usd: number;
-  linea: string;
-  categoria: string;
-  genero: string;
+  linea?: string;
+  categoria?: string;
+  genero?: string;
   imagen_url?: string;
 }
 
 const Cart = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { items: cartItems, loading: cartLoading, clearCart, removeItem } = useSupabaseCart();
   const [productos, setProductos] = useState<Record<string, ProductoDetalle>>({});
   const [clienteInfo, setClienteInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadCartData();
-  }, []);
+    loadData();
+  }, [cartItems]);
 
-  const loadCartData = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-
-    // Load cliente info
-    // First get the user_role to get the relationship
-    const { data: userRole } = await supabase
-      .from("user_roles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (userRole) {
-      // If role is cliente, user_id points to the cliente.id
-      // If role is admin/superadmin, client_id is the reference
-      let clienteData;
+  const loadData = async () => {
+    try {
+      setLoading(true);
       
-      if (userRole.role === 'cliente') {
-        // For clients, user_id IS the cliente.id
-        const { data: cliente } = await supabase
-          .from("clientes")
-          .select("id, nombre, tier, vendedor_id")
-          .eq("id", userRole.user_id)
-          .single();
-        
-        clienteData = cliente;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/login");
+        return;
+      }
 
-        // Fetch vendedor name separately
-        if (cliente?.vendedor_id) {
-          const { data: vendedor } = await supabase
-            .from("vendedores")
-            .select("nombre")
-            .eq("id", cliente.vendedor_id)
-            .single();
-          
-          if (vendedor) {
-            clienteData = { ...clienteData, vendedores: vendedor };
-          }
-        }
-      } else if (userRole.cliente_id) {
-        // For other roles with cliente_id
-        const { data: cliente } = await supabase
+      // Load client info
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("nombre, role, cliente_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (userRole?.cliente_id) {
+        const { data: clienteData } = await supabase
           .from("clientes")
-          .select("id, nombre, tier, vendedor_id")
+          .select("nombre, tier, vendedor_id")
           .eq("id", userRole.cliente_id)
           .single();
-        
-        clienteData = cliente;
 
-        // Fetch vendedor name separately
-        if (cliente?.vendedor_id) {
-          const { data: vendedor } = await supabase
-            .from("vendedores")
-            .select("nombre")
-            .eq("id", cliente.vendedor_id)
-            .single();
-          
-          if (vendedor) {
-            clienteData = { ...clienteData, vendedores: vendedor };
-          }
+        setClienteInfo({
+          ...userRole,
+          clientes: clienteData
+        });
+      }
+
+      // Load product details
+      const productIds = [...new Set(cartItems.map((item: CartItem) => item.productoId))] as string[];
+      if (productIds.length > 0) {
+        const { data } = await supabase
+          .from("productos")
+          .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url")
+          .in("id", productIds);
+
+        if (data) {
+          const productMap: Record<string, ProductoDetalle> = {};
+          data.forEach((p: any) => {
+            productMap[p.id] = p;
+          });
+          setProductos(productMap);
         }
       }
 
-      setClienteInfo({
-        ...userRole,
-        clientes: clienteData
-      });
+    } catch (error) {
+      console.error("Error loading cart data:", error);
+    } finally {
+      setLoading(false);
     }
-
-    // Load cart items using CartStorageService
-    const items = CartStorageService.getCart(session.user.id);
-    setCartItems(items);
-
-    // Load product details
-    const productIds = [...new Set(items.map((item: CartItem) => item.productoId))] as string[];
-    if (productIds.length > 0) {
-      const { data } = await supabase
-        .from("productos")
-        .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url")
-        .in("id", productIds);
-
-      if (data) {
-        const productMap: Record<string, ProductoDetalle> = {};
-        data.forEach((p: any) => {
-          productMap[p.id] = p;
-        });
-        setProductos(productMap);
-      }
-    }
-
-    setLoading(false);
   };
 
   const calculateTotalQuantity = (talles: Record<string, number>, cantidadCurvas: number) => {
@@ -165,33 +127,14 @@ const Cart = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (!userRole) return;
-
-      // Determine the cliente_id based on the role
-      let clienteIdForPedido;
-      
-      if (userRole.role === 'cliente') {
-        // For clients, user_id IS the cliente.id
-        clienteIdForPedido = userRole.user_id;
-      } else {
-        // For other roles, use cliente_id if it exists
-        clienteIdForPedido = userRole.cliente_id;
-      }
-
-      // Create order with estado = 'autorizado' (pedido finalizado)
+      // Create order
       const { data: pedido, error: pedidoError } = await supabase
         .from("pedidos")
         .insert({
-          cliente_id: clienteIdForPedido,
-          vendedor_id: clienteInfo?.clientes?.vendedor_id,
+          cliente_id: clienteInfo?.cliente_id || session.user.id,
+          vendedor_id: clienteInfo?.clientes?.vendedor_id || null,
+          estado: "pendiente",
           total_usd: calculateTotal(),
-          estado: 'autorizado',
         })
         .select()
         .single();
@@ -199,17 +142,14 @@ const Cart = () => {
       if (pedidoError) throw pedidoError;
 
       // Create order items
-      const itemsToInsert = cartItems.map(item => {
-        const producto = productos[item.productoId];
-        const totalQty = calculateTotalQuantity(item.talles, item.cantidadCurvas);
-        return {
-          pedido_id: pedido.id,
-          producto_id: item.productoId,
-          cantidad: totalQty,
-          precio_unitario: producto?.precio_usd || 0,
-          subtotal_usd: calculateSubtotal(item),
-        };
-      });
+      const itemsToInsert = cartItems.map((item) => ({
+        pedido_id: pedido.id,
+        producto_id: item.productoId,
+        cantidad: calculateTotalQuantity(item.talles, item.cantidadCurvas),
+        precio_unitario: productos[item.productoId]?.precio_usd || 0,
+        subtotal_usd: calculateSubtotal(item),
+        talles_cantidades: item.talles,
+      }));
 
       const { error: itemsError } = await supabase
         .from("items_pedido")
@@ -220,214 +160,193 @@ const Cart = () => {
       // Generate Excel
       generateExcel(pedido.id);
 
-      // Clear cart using CartStorageService
-      CartStorageService.clearCart(session.user.id);
-
-      // Disparar evento personalizado para notificar al Layout
-      window.dispatchEvent(new CustomEvent('cartUpdated'));
+      // Clear cart
+      await clearCart();
 
       toast({
-        title: "Pedido finalizado",
-        description: "Tu pedido ha sido registrado exitosamente",
+        title: "Pedido creado",
+        description: "Tu pedido ha sido creado exitosamente.",
       });
 
-      navigate("/catalog");
-    } catch (error: any) {
+      navigate("/pedidos");
+
+    } catch (error) {
+      console.error("Error creating order:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "No se pudo crear el pedido.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await clearCart();
+      toast({
+        title: "Carrito vaciado",
+        description: "Todos los productos han sido eliminados del carrito.",
+      });
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo vaciar el carrito.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveItem = async (index: number) => {
+    try {
+      const itemToRemove = cartItems[index];
+      await removeItem(itemToRemove.productoId);
+      
+      toast({
+        title: "Producto eliminado",
+        description: "El producto ha sido eliminado del carrito.",
+      });
+    } catch (error) {
+      console.error("Error removing item:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el producto.",
         variant: "destructive",
       });
     }
   };
 
   const generateExcel = (pedidoId: string) => {
-    const excelData = cartItems.map(item => {
+    const data = cartItems.map((item, index) => {
       const producto = productos[item.productoId];
-      const row: any = {
-        "Cliente": clienteInfo?.clientes?.nombre || "",
-        "Vendedor": clienteInfo?.clientes?.vendedores?.nombre || "",
-        "SKU": producto.sku,
-        "Producto": producto.nombre,
-        "Género": producto.genero,
-        "Línea": producto.linea,
-        "Categoría": producto.categoria,
-        "Precio Unitario USD": producto.precio_usd,
+      return {
+        "N°": index + 1,
+        "SKU": producto?.sku || "",
+        "Producto": producto?.nombre || "",
+        "Cantidad": calculateTotalQuantity(item.talles, item.cantidadCurvas),
+        "Precio Unitario": producto?.precio_usd || 0,
+        "Subtotal": calculateSubtotal(item),
       };
-
-      // Add size columns
-      Object.entries(item.talles).forEach(([talle, cantidad]) => {
-        const totalCantidad = cantidad * item.cantidadCurvas;
-        row[`Talle ${talle}`] = totalCantidad;
-      });
-
-      row["Subtotal USD"] = calculateSubtotal(item);
-      
-      return row;
     });
 
-    // Add total row
-    excelData.push({
-      "Cliente": "",
-      "Vendedor": "",
-      "SKU": "",
-      "Producto": "TOTAL",
-      "Subtotal USD": calculateTotal(),
-    });
-
-    const ws = XLSX.utils.json_to_sheet(excelData);
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Pedido");
-    
-    XLSX.writeFile(wb, `Pedido_${clienteInfo?.clientes?.nombre}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    const fileName = `pedido_${pedidoId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
-  const handleRemoveItem = async (index: number) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const removedItem = cartItems[index];
-
-    // Remove item using CartStorageService
-    CartStorageService.removeItem(session.user.id, removedItem.productoId);
-
-    // Update local state
-    const updatedCartItems = cartItems.filter((_, i) => i !== index);
-    setCartItems(updatedCartItems);
-
-    // Disparar evento personalizado para notificar al Layout
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-    
-    toast({
-      title: "Producto eliminado",
-      description: "El producto fue eliminado del pedido",
-    });
-  };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"></div>;
+  if (loading || cartLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando carrito...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold">Mi Pedido</h1>
-          </div>
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/catalog")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al Catálogo
+          </Button>
+          <h1 className="text-3xl font-bold">Mi Carrito</h1>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="flex-1 overflow-auto p-6">
         {cartItems.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-muted-foreground">No hay productos en tu pedido</p>
-            <Button onClick={() => navigate("/catalog")} className="mt-4">
-              Volver al inicio
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🛒</div>
+            <h2 className="text-2xl font-semibold mb-2">Tu carrito está vacío</h2>
+            <p className="text-muted-foreground mb-6">
+              Agrega productos desde el catálogo para comenzar tu pedido
+            </p>
+            <Button onClick={() => navigate("/catalog")}>
+              Ir al Catálogo
             </Button>
-          </Card>
+          </div>
         ) : (
-          <div className="space-y-6">
-            <Card className="p-6">
-              <h2 className="font-semibold mb-2">Información del Cliente</h2>
-              <p className="text-sm text-muted-foreground">
-                Cliente: {clienteInfo?.clientes?.nombre}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Vendedor: {clienteInfo?.clientes?.vendedores?.nombre || 'Sin asignar'}
-              </p>
-            </Card>
-
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* Cart Items */}
             <div className="space-y-4">
               {cartItems.map((item, index) => {
                 const producto = productos[item.productoId];
                 if (!producto) return null;
 
                 return (
-                  <Card key={index} className="p-6">
-                    <div className="space-y-4">
-                      <div className="flex gap-4">
-                        {producto.imagen_url && (
-                          <img 
-                            src={producto.imagen_url} 
-                            alt={producto.nombre}
-                            className="w-20 h-20 object-cover rounded-md"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h3 className="font-semibold">{producto.nombre}</h3>
-                              <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <p className="font-bold">USD ${producto.precio_usd}</p>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveItem(index)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-sm space-y-2">
-                        <p className="text-muted-foreground">Talles:</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {Object.entries(item.talles).map(([talle, cantidad]) => {
-                            const total = cantidad * item.cantidadCurvas;
-                            if (total === 0) return null;
-                            return (
-                              <div key={talle} className="flex justify-between">
-                                <span>{talle}:</span>
-                                <span className="font-medium">{total}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {item.type === "predefined" && (
-                          <p className="text-muted-foreground">
-                            Cantidad de curvas: {item.cantidadCurvas}
+                  <Card key={`${item.productoId}-${index}`} className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{producto.nombre}</h3>
+                        <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-sm">
+                            <span className="font-medium">Cantidad:</span> {calculateTotalQuantity(item.talles, item.cantidadCurvas)} unidades
                           </p>
-                        )}
+                          <p className="text-sm">
+                            <span className="font-medium">Precio unitario:</span> ${producto.precio_usd}
+                          </p>
+                          <p className="text-sm">
+                            <span className="font-medium">Subtotal:</span> ${calculateSubtotal(item).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
-
-                      <div className="flex justify-between border-t pt-4">
-                        <span className="font-medium">Subtotal:</span>
-                        <span className="font-bold">USD ${calculateSubtotal(item).toFixed(2)}</span>
-                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveItem(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </Card>
                 );
               })}
             </div>
 
+            {/* Order Summary */}
             <Card className="p-6">
-              <div className="flex justify-between items-center text-xl font-bold">
-                <span>Total:</span>
-                <span>USD ${calculateTotal().toFixed(2)}</span>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold">Total:</span>
+                  <span className="text-2xl font-bold">${calculateTotal().toFixed(2)}</span>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleFinalizarPedido}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Finalizar Pedido
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleClearCart}
+                    size="lg"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Vaciar Carrito
+                  </Button>
+                </div>
               </div>
             </Card>
-
-            <Button 
-              onClick={handleFinalizarPedido} 
-              className="w-full touch-manipulation" 
-              size="lg"
-              disabled={loading}
-            >
-              <Download className="h-5 w-5 mr-2" />
-              Finalizar Pedido y Descargar
-            </Button>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

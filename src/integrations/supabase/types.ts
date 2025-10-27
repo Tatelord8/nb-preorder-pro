@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      carritos_pendientes: {
+        Row: {
+          cliente_id: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          items: Json
+          total_items: number | null
+          total_unidades: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          items?: Json
+          total_items?: number | null
+          total_unidades?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          items?: Json
+          total_items?: number | null
+          total_unidades?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carritos_pendientes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           created_at: string | null
@@ -49,24 +93,6 @@ export type Database = {
           },
         ]
       }
-      curvas: {
-        Row: {
-          created_at: string | null
-          id: string
-          nombre: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          nombre: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          nombre?: string
-        }
-        Relationships: []
-      }
       items_pedido: {
         Row: {
           cantidad: number
@@ -76,6 +102,7 @@ export type Database = {
           precio_unitario: number
           producto_id: string | null
           subtotal_usd: number
+          talles_cantidades: Json | null
         }
         Insert: {
           cantidad: number
@@ -85,6 +112,7 @@ export type Database = {
           precio_unitario: number
           producto_id?: string | null
           subtotal_usd: number
+          talles_cantidades?: Json | null
         }
         Update: {
           cantidad?: number
@@ -94,6 +122,7 @@ export type Database = {
           precio_unitario?: number
           producto_id?: string | null
           subtotal_usd?: number
+          talles_cantidades?: Json | null
         }
         Relationships: [
           {
@@ -149,7 +178,7 @@ export type Database = {
         Row: {
           cliente_id: string | null
           created_at: string | null
-          estado: string | null
+          estado: string
           id: string
           total_usd: number
           updated_at: string | null
@@ -254,55 +283,28 @@ export type Database = {
       }
       tiers: {
         Row: {
-          activo: boolean | null
           created_at: string | null
           descripcion: string | null
-          id: number
-          nombre: string
-          numero: number
-        }
-        Insert: {
-          activo?: boolean | null
-          created_at?: string | null
-          descripcion?: string | null
-          id?: number
-          nombre: string
-          numero: number
-        }
-        Update: {
-          activo?: boolean | null
-          created_at?: string | null
-          descripcion?: string | null
-          id?: number
-          nombre?: string
-          numero?: number
-        }
-        Relationships: []
-      }
-      usuarios: {
-        Row: {
-          activo: boolean | null
-          created_at: string | null
-          email: string
           id: string
           nombre: string
-          updated_at: string | null
+          numero: string
+          orden: number
         }
         Insert: {
-          activo?: boolean | null
           created_at?: string | null
-          email: string
-          id: string
+          descripcion?: string | null
+          id?: string
           nombre: string
-          updated_at?: string | null
+          numero: string
+          orden: number
         }
         Update: {
-          activo?: boolean | null
           created_at?: string | null
-          email?: string
+          descripcion?: string | null
           id?: string
           nombre?: string
-          updated_at?: string | null
+          numero?: string
+          orden?: number
         }
         Relationships: []
       }
@@ -348,11 +350,38 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
+      }
+      usuarios: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          email: string
+          id: string
+          nombre: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          email: string
+          id?: string
+          nombre: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nombre?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       vendedores: {
         Row: {
@@ -382,25 +411,29 @@ export type Database = {
     Functions: {
       confirm_user_email: { Args: { user_id: string }; Returns: Json }
       create_superadmin: { Args: { user_id: string }; Returns: undefined }
+      create_user_complete: {
+        Args: {
+          p_email: string
+          p_marca_id: string
+          p_nombre: string
+          p_role: string
+          p_tier: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       create_user_with_role:
         | {
             Args: {
               user_cliente_id?: string
               user_email: string
               user_marca_id?: string
-              user_nombre?: string
+              user_nombre: string
               user_password: string
               user_role: string
               user_tier_id?: number
             }
-            Returns: {
-              email: string
-              nombre: string
-              role: string
-              success: boolean
-              tier_id: number
-              user_id: string
-            }[]
+            Returns: Json
           }
         | {
             Args: {
@@ -413,6 +446,19 @@ export type Database = {
             Returns: Json
           }
       delete_user: { Args: { user_id_to_delete: string }; Returns: Json }
+      get_cliente_id: { Args: { user_id: string }; Returns: string }
+      get_user_info: {
+        Args: { user_id: string }
+        Returns: {
+          activo: boolean
+          cliente_id: string
+          email: string
+          marca_id: string
+          nombre: string
+          role: string
+          usuario_id: string
+        }[]
+      }
       get_users_with_roles: {
         Args: never
         Returns: {
@@ -423,15 +469,15 @@ export type Database = {
           marca_id: string
           nombre: string
           role: string
-          tier_id: number
-          tier_nombre: string
+          tier: string
           user_id: string
         }[]
       }
       has_superadmin: { Args: never; Returns: boolean }
-      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_client: { Args: { user_id?: string }; Returns: boolean }
-      is_superadmin: { Args: { user_id: string }; Returns: boolean }
+      is_cliente: { Args: { user_id: string }; Returns: boolean }
+      is_superadmin: { Args: { p_user_id?: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

@@ -4,7 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { CartStorageService, type CartInfo } from './cart-storage.service';
+import { supabase } from '@/integrations/supabase/client';
 import { ProductosService, type Producto } from './productos.service';
 import { PedidosService, type PedidoConDetalles } from './pedidos.service';
 
@@ -135,10 +135,35 @@ export interface CarritoStats {
  */
 export class ReportsService {
   /**
-   * Obtiene todos los carritos desde localStorage
+   * Obtiene todos los carritos desde Supabase
    */
-  static async getAllCarritos(): Promise<CartInfo[]> {
-    return CartStorageService.getAllCarts();
+  static async getAllCarritos(): Promise<any[]> {
+    try {
+      const { data: carritosData, error } = await supabase
+        .from("carritos_pendientes")
+        .select(`
+          id,
+          user_id,
+          cliente_id,
+          items,
+          total_items,
+          total_unidades,
+          created_at,
+          clientes(nombre, tier, vendedor_id),
+          vendedores(nombre)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error obteniendo carritos:', error);
+        return [];
+      }
+
+      return carritosData || [];
+    } catch (error) {
+      console.error('Error en getAllCarritos:', error);
+      return [];
+    }
   }
 
   /**
@@ -831,11 +856,15 @@ export class ReportsService {
           }
 
           if (tipo === 'carritos') {
-            const key = `cartItems_${pedido.cliente_id}`;
-            const cartData = localStorage.getItem(key);
+            // Obtener datos del carrito desde Supabase
+            const { data: carritoData } = await supabase
+              .from("carritos_pendientes")
+              .select("items")
+              .eq("cliente_id", pedido.cliente_id)
+              .single();
 
-            if (cartData) {
-              const items = JSON.parse(cartData);
+            if (carritoData && carritoData.items) {
+              const items = carritoData.items;
               const cartItem = items.find((i: any) => i.productoId === item.producto_id);
 
               if (cartItem && cartItem.talles) {

@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { generateSizes, getSizeInfo, type ProductSizeInfo } from "@/utils/sizeGenerator";
 import { getCurvesForGender, getCurveInfo, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
 import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
-import { CartStorageService } from "@/services/cart-storage.service";
+import { canUserAccessTier, getAccessDeniedMessage } from "@/utils/tierAccess";
+import { useSupabaseCart } from "@/hooks/useSupabaseCart";
 
 interface Producto {
   id: string;
@@ -45,6 +46,7 @@ const ProductDetail = () => {
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
   const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
+  const { addItem, removeItem, isProductInCart: checkIsInCart } = useSupabaseCart();
   const [isInCart, setIsInCart] = useState(false);
   const [validSizes, setValidSizes] = useState<string[]>([]);
   
@@ -106,7 +108,7 @@ const ProductDetail = () => {
 
   // Verificar acceso cuando se carguen tanto el producto como el tier del usuario
   useEffect(() => {
-    if (producto && userTier && producto.tier !== userTier) {
+    if (producto && userTier && !canUserAccessTier(userTier, producto.tier || "0")) {
       setAccessDenied(true);
     }
   }, [producto, userTier]);
@@ -120,15 +122,10 @@ const ProductDetail = () => {
   };
 
   const checkIfInCart = async () => {
+    if (!id) return;
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setIsInCart(false);
-        return;
-      }
-
-      const cartItems = CartStorageService.getCart(session.user.id);
-      const isInCart = cartItems.some(item => item.productoId === id);
+      const isInCart = checkIsInCart(id);
       setIsInCart(isInCart);
     } catch (error) {
       console.error('Error checking cart:', error);
@@ -154,11 +151,11 @@ const ProductDetail = () => {
     }
 
     // Verificar acceso por tier (solo para clientes)
-    if (userTier && productoData.tier !== userTier) {
+    if (userTier && !canUserAccessTier(userTier, productoData.tier || "0")) {
       setAccessDenied(true);
       toast({
         title: "Acceso denegado",
-        description: "No tienes permisos para ver este producto",
+        description: getAccessDeniedMessage(userTier, productoData.tier || "0"),
         variant: "destructive",
       });
       return;
@@ -230,11 +227,8 @@ const ProductDetail = () => {
       precio_usd: producto?.precio_usd,
     };
 
-    // Usar CartStorageService para agregar al carrito
-    CartStorageService.addItem(session.user.id, newItem);
-
-    // Disparar evento personalizado para notificar al Layout
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
+    // Usar SupabaseCartService para agregar al carrito
+    await addItem(newItem);
 
     setIsInCart(true);
 
@@ -252,29 +246,26 @@ const ProductDetail = () => {
   };
 
   const handleRemoveFromCart = async () => {
-    // Obtener userId de la sesión actual
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!id) return;
+
+    try {
+      // Usar SupabaseCartService para eliminar del carrito
+      await removeItem(id);
+
+      setIsInCart(false);
+
+      toast({
+        title: "Eliminado del pedido",
+        description: "El producto fue eliminado exitosamente",
+      });
+    } catch (error) {
+      console.error('Error removing from cart:', error);
       toast({
         title: "Error",
-        description: "No hay sesión activa",
+        description: "No se pudo eliminar el producto del pedido",
         variant: "destructive",
       });
-      return;
     }
-
-    // Usar CartStorageService para eliminar del carrito
-    CartStorageService.removeItem(session.user.id, id!);
-
-    // Disparar evento personalizado para notificar al Layout
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-
-    setIsInCart(false);
-
-    toast({
-      title: "Eliminado del pedido",
-      description: "El producto fue eliminado exitosamente",
-    });
   };
 
   if (!producto) {
@@ -309,7 +300,7 @@ const ProductDetail = () => {
               </div>
               <h1 className="text-2xl font-bold text-destructive mb-2">Acceso Denegado</h1>
               <p className="text-muted-foreground">
-                No tienes permisos para ver este producto. Solo puedes acceder a productos de tu tier.
+                {userTier ? getAccessDeniedMessage(userTier, producto.tier || "0") : "No tienes permisos para ver este producto."}
               </p>
             </div>
             <Button 

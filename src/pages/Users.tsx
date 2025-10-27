@@ -387,10 +387,10 @@ const Users = () => {
         }
       }
 
-      // Paso 2: Determinar tier_id según el rol
-      let tierId = null;
+      // Paso 2: Determinar tier según el rol
+      let tierValue: string | null = null;
       if (formData.role !== "admin" && formData.role !== "superadmin" && formData.tier_id && formData.tier_id !== "none") {
-        tierId = parseInt(formData.tier_id);
+        tierValue = formData.tier_id;
       }
 
       // Paso 3: Determinar marca_id según la selección
@@ -407,7 +407,7 @@ const Users = () => {
           p_email: normalizedEmail,
           p_nombre: formData.nombre,
           p_role: formData.role,
-          p_tier_id: tierId,
+          p_tier: tierValue,
           p_marca_id: marcaId
         });
 
@@ -428,10 +428,10 @@ const Users = () => {
       if (formData.role === "cliente" && formData.vendedor_id && formData.vendedor_id !== "none") {
         console.log('📝 Creando cliente con vendedor asignado...');
         
-        // Determinar el tier del cliente (convertir tier_id a tier string)
+        // Determinar el tier del cliente (usar tierValue directamente)
         let tierValue = null;
-        if (tierId !== null) {
-          tierValue = tierId.toString();
+        if (formData.tier_id && formData.tier_id !== "none") {
+          tierValue = formData.tier_id;
         }
 
         const { error: clienteError } = await supabase
@@ -449,6 +449,58 @@ const Users = () => {
           // No lanzar error aquí, solo registrar el error
         } else {
           console.log('✅ Cliente creado exitosamente con vendedor asignado');
+          
+          // Actualizar user_roles con el cliente_id
+          const { error: updateRoleError } = await supabase
+            .from("user_roles")
+            .update({ cliente_id: signUpData.user.id })
+            .eq("user_id", signUpData.user.id);
+
+          if (updateRoleError) {
+            console.error("❌ Error updating user_roles with cliente_id:", updateRoleError);
+          } else {
+            console.log('✅ user_roles actualizado con cliente_id');
+          }
+        }
+      }
+
+      // Paso 6: Si el rol es cliente pero no tiene vendedor asignado, crear cliente básico
+      if (formData.role === "cliente" && (!formData.vendedor_id || formData.vendedor_id === "none")) {
+        console.log('📝 Creando cliente sin vendedor asignado...');
+        
+        // Determinar el tier del cliente
+        let tierValue = null;
+        if (formData.tier_id && formData.tier_id !== "none") {
+          tierValue = formData.tier_id;
+        }
+
+        const { error: clienteError } = await supabase
+          .from("clientes")
+          .insert({
+            id: signUpData.user.id,
+            nombre: formData.nombre,
+            tier: tierValue,
+            vendedor_id: null,
+            marca_id: marcaId
+          });
+
+        if (clienteError) {
+          console.error("❌ Error creating cliente:", clienteError);
+          // No lanzar error aquí, solo registrar el error
+        } else {
+          console.log('✅ Cliente creado exitosamente sin vendedor asignado');
+          
+          // Actualizar user_roles con el cliente_id
+          const { error: updateRoleError } = await supabase
+            .from("user_roles")
+            .update({ cliente_id: signUpData.user.id })
+            .eq("user_id", signUpData.user.id);
+
+          if (updateRoleError) {
+            console.error("❌ Error updating user_roles with cliente_id:", updateRoleError);
+          } else {
+            console.log('✅ user_roles actualizado con cliente_id');
+          }
         }
       }
 
@@ -533,19 +585,19 @@ const Users = () => {
         role: formData.role,
       };
 
-      // Manejar tier_id según el rol
+      // Manejar tier según el rol
       if (formData.role === "admin" || formData.role === "superadmin") {
         // Los administradores y superadministradores no tienen tier
-        updateData.tier_id = null;
+        updateData.tier = null;
       } else if (formData.tier_id && formData.tier_id !== "none") {
-        // Solo incluir tier_id si es diferente de "none" para otros roles
-        // tier_id debe ser el número del tier, no el UUID
+        // Solo incluir tier si es diferente de "none" para otros roles
+        // tier debe ser el número del tier como string, no el UUID
         const tierNumber = parseInt(formData.tier_id);
-        updateData.tier_id = isNaN(tierNumber) ? null : tierNumber;
-        console.log("🔍 Tier ID conversion:", formData.tier_id, "->", updateData.tier_id);
+        updateData.tier = isNaN(tierNumber) ? null : tierNumber.toString();
+        console.log("🔍 Tier conversion:", formData.tier_id, "->", updateData.tier);
       } else {
         // Si es "none" o vacío, establecer como null
-        updateData.tier_id = null;
+        updateData.tier = null;
       }
 
       // Manejar marca_id según la selección
@@ -599,10 +651,10 @@ const Users = () => {
       if (formData.role === "cliente") {
         console.log('📝 Actualizando/creando cliente...');
         
-        // Determinar el tier del cliente (convertir tier_id a tier string)
+        // Determinar el tier del cliente (usar tier directamente)
         let tierValue = null;
-        if (updateData.tier_id !== null && updateData.tier_id !== undefined) {
-          tierValue = updateData.tier_id.toString();
+        if (updateData.tier !== null && updateData.tier !== undefined) {
+          tierValue = updateData.tier;
         }
 
         // Determinar vendedor_id

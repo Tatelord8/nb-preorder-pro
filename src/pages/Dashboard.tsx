@@ -21,6 +21,7 @@ import {
   Download
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CartMigration } from "@/components/CartMigration";
 import * as XLSX from 'xlsx';
 
 interface DashboardStats {
@@ -145,25 +146,22 @@ const Dashboard = () => {
         .from("items_pedido")
         .select("producto_id, cantidad");
 
-      // Obtener productos en carritos sin confirmar
+      // Obtener productos en carritos sin confirmar desde Supabase
+      const { data: carritosPendientes } = await supabase
+        .from("carritos_pendientes")
+        .select("items");
+      
       const productoIdsEnCarritos = new Set<string>();
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("cartItems_")) {
-          try {
-            const cartData = localStorage.getItem(key);
-            if (cartData) {
-              const items = JSON.parse(cartData);
-              items.forEach((item: any) => {
-                if (item.productoId) {
-                  productoIdsEnCarritos.add(item.productoId);
-                }
-              });
-            }
-          } catch (e) {
-            console.warn(`Error parsing cart ${key}:`, e);
+      if (carritosPendientes) {
+        carritosPendientes.forEach((carrito: any) => {
+          if (carrito.items && Array.isArray(carrito.items)) {
+            carrito.items.forEach((item: any) => {
+              if (item.productoId) {
+                productoIdsEnCarritos.add(item.productoId);
+              }
+            });
           }
-        }
+        });
       }
 
       // Crear un Set con todos los IDs de productos que han sido seleccionados
@@ -233,43 +231,36 @@ const Dashboard = () => {
         }
       }
 
-      // Contar de carritos
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("cartItems_")) {
-          try {
-            const cartData = localStorage.getItem(key);
-            if (cartData) {
-              const items = JSON.parse(cartData);
-              items.forEach((item: any) => {
-                if (item.productoId) {
-                  const producto = todosProductos?.find(p => p.id === item.productoId);
-                  if (producto) {
-                    const rubro = producto.rubro?.toLowerCase();
-                    const targetMap = rubro === 'calzados' ? skuCountsCalzados : (rubro === 'prendas' ? skuCountsPrendas : null);
-                    
-                    if (targetMap) {
-                      const countKey = producto.sku;
-                      if (targetMap.has(countKey)) {
-                        targetMap.get(countKey)!.cantidad += 1;
-                      } else {
-                        targetMap.set(countKey, {
-                          sku: producto.sku,
-                          nombre: producto.nombre,
-                          rubro: producto.rubro,
-                          cantidad: 1,
-                          cantidadTotal: 0
-                        });
-                      }
+      // Contar de carritos desde Supabase
+      if (carritosPendientes) {
+        carritosPendientes.forEach((carrito: any) => {
+          if (carrito.items && Array.isArray(carrito.items)) {
+            carrito.items.forEach((item: any) => {
+              if (item.productoId) {
+                const producto = todosProductos?.find(p => p.id === item.productoId);
+                if (producto) {
+                  const rubro = producto.rubro?.toLowerCase();
+                  const targetMap = rubro === 'calzados' ? skuCountsCalzados : (rubro === 'prendas' ? skuCountsPrendas : null);
+                  
+                  if (targetMap) {
+                    const countKey = producto.sku;
+                    if (targetMap.has(countKey)) {
+                      targetMap.get(countKey)!.cantidad += 1;
+                    } else {
+                      targetMap.set(countKey, {
+                        sku: producto.sku,
+                        nombre: producto.nombre,
+                        rubro: producto.rubro,
+                        cantidad: 1,
+                        cantidadTotal: 0
+                      });
                     }
                   }
                 }
-              });
-            }
-          } catch (e) {
-            console.warn(`Error parsing cart ${key}:`, e);
+              }
+            });
           }
-        }
+        });
       }
       
       // Calcular cantidad total por SKU sumando las cantidades
@@ -287,32 +278,25 @@ const Dashboard = () => {
           }
         }
         
-        // Buscar en carritos - sumar las cantidades de las tallas
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith("cartItems_")) {
-            try {
-              const cartData = localStorage.getItem(key);
-              if (cartData) {
-                const items = JSON.parse(cartData);
-                items.forEach((cartItem: any) => {
-                  if (cartItem.productoId) {
-                    const producto = productos.find(p => p.id === cartItem.productoId);
-                    if (producto && producto.sku === sku) {
-                      // Sumar las cantidades de las tallas
-                      if (cartItem.talles && typeof cartItem.talles === 'object') {
-                        Object.values(cartItem.talles).forEach((cantidad: any) => {
-                          total += parseInt(cantidad) || 0;
-                        });
-                      }
+        // Buscar en carritos desde Supabase - sumar las cantidades de las tallas
+        if (carritosPendientes) {
+          carritosPendientes.forEach((carrito: any) => {
+            if (carrito.items && Array.isArray(carrito.items)) {
+              carrito.items.forEach((cartItem: any) => {
+                if (cartItem.productoId) {
+                  const producto = productos.find(p => p.id === cartItem.productoId);
+                  if (producto && producto.sku === sku) {
+                    // Sumar las cantidades de las tallas
+                    if (cartItem.talles && typeof cartItem.talles === 'object') {
+                      Object.values(cartItem.talles).forEach((cantidad: any) => {
+                        total += parseInt(cantidad) || 0;
+                      });
                     }
                   }
-                });
-              }
-            } catch (e) {
-              console.warn(`Error parsing cart ${key}:`, e);
+                }
+              });
             }
-          }
+          });
         }
         
         return total;
@@ -348,9 +332,9 @@ const Dashboard = () => {
   const loadStats = useCallback(async () => {
     try {
       // Helper function to safely execute queries
-      const safeQuery = async (query: Promise<any>, defaultValue: any = { count: 0, data: [] }) => {
+      const safeQuery = async (queryBuilder: any, defaultValue: any = { count: 0, data: [] }) => {
         try {
-          const result = await query;
+          const result = await queryBuilder;
           return result;
         } catch (error) {
           console.warn("Query failed:", error);
@@ -376,56 +360,15 @@ const Dashboard = () => {
        console.log(`🔍 DEBUG: Usuarios válidos encontrados: ${userIdsValidos.size}`);
        userIdsValidos.forEach(id => console.log(`  - ${id}`));
 
-             // Contar carritos pendientes: solo carritos con productos sin finalizar
-       let carritosPendientesCount = 0;
-       
-       // Obtener usuario actual
-       const { data: { session } } = await supabase.auth.getSession();
-       const currentUserId = session?.user?.id;
-       
-       // Recorrer TODAS las claves en localStorage para buscar carritos
-       const carritosEncontrados = new Set<string>();
-       
-       // Buscar todos los carritos en localStorage
-       console.log("🔍 DEBUG: Iterando localStorage...");
-       for (let i = 0; i < localStorage.length; i++) {
-         const key = localStorage.key(i);
-         
-         // SOLO considerar claves específicas de usuario (cartItems_userId), NO la global
-         if (key && key.startsWith("cartItems_")) {
-           // Extraer el user_id de la clave
-           const userIdFromKey = key.replace("cartItems_", "");
-           
-           console.log(`🔍 DEBUG: Encontrada clave cartItems_: ${key} (user_id: ${userIdFromKey})`);
-           
-           // SOLO contar si el user_id existe en la base de datos
-           if (userIdsValidos.has(userIdFromKey)) {
-             console.log(`  ✅ User ID ${userIdFromKey} es válido`);
-             try {
-               const cartData = localStorage.getItem(key);
-               if (cartData) {
-                 const items = JSON.parse(cartData);
-                 console.log(`  🔍 Key ${key} tiene ${items.length} items`);
-                 // Solo contar si hay items reales (array no vacío)
-                 if (Array.isArray(items) && items.length > 0) {
-                   // Usar la clave del localStorage como identificador único del carrito
-                   carritosEncontrados.add(key);
-                   console.log(`  📦 Carrito encontrado: ${key} con ${items.length} items`);
-                 } else {
-                   console.log(`  ⚠️ Key ${key} está vacío (length: ${items.length})`);
-                 }
-               }
-             } catch (e) {
-               console.warn(`  ❌ Error parsing cart ${key}:`, e);
-             }
-           } else {
-             console.log(`  ⚠️ User ID ${userIdFromKey} NO es válido (usuario no existe en BD)`);
-           }
-         }
-       }
-       
-       carritosPendientesCount = carritosEncontrados.size;
-       console.log(`🔍 Total carritos pendientes: ${carritosPendientesCount}`);
+      // Contar carritos pendientes desde Supabase
+      let carritosPendientesCount = 0;
+      
+      const { data: carritosPendientesCountData } = await supabase
+        .from("carritos_pendientes")
+        .select("id", { count: "exact", head: true });
+      
+      carritosPendientesCount = carritosPendientesCountData?.length || 0;
+      console.log(`🔍 Total carritos pendientes desde Supabase: ${carritosPendientesCount}`);
 
       // Load all stats in parallel with error handling
       const [
@@ -720,6 +663,11 @@ const Dashboard = () => {
               </div>
             </div>
           </Card>
+        </div>
+
+        {/* Componente de Migración de Carritos */}
+        <div className="mt-8">
+          <CartMigration />
         </div>
 
         {/* Nuevos segmentos de SKUs */}

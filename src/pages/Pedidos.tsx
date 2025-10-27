@@ -7,12 +7,13 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { CheckCircle, ShoppingCart } from 'lucide-react';
+import { CheckCircle, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
 
 // Hooks personalizados
 import { useCurrentUser, useUserRole } from '../hooks/useAuth';
-import { usePedidos } from '../hooks/usePedidos';
+import { usePedidosWithDetails } from '../hooks/usePedidos';
 import { useCarritos } from '../hooks/useCarritos';
 
 // Servicios
@@ -29,10 +30,15 @@ const Pedidos = () => {
   // Hooks de React Query
   const { data: currentUser, isLoading: loadingUser } = useCurrentUser();
   const { data: userRole } = useUserRole(currentUser?.id);
-  const { data: pedidosFinalizados = [], isLoading: loadingPedidos } = usePedidos({
-    estado: ['autorizado', 'completado']
+  
+  // Obtener el cliente_id correcto
+  const clienteId = userRole?.cliente_id || currentUser?.id;
+  
+  const { data: pedidosFinalizados = [], isLoading: loadingPedidos, refetch: refetchPedidos } = usePedidosWithDetails({
+    estado: ['autorizado', 'completado'],
+    cliente_id: clienteId
   });
-  const { data: carritosSinConfirmar = [], isLoading: loadingCarritos } = useCarritos();
+  const { data: carritosSinConfirmar = [], isLoading: loadingCarritos, refetch: refetchCarritos } = useCarritos();
 
   // Estados para filtros de reportes
   const [filtroReporte, setFiltroReporte] = useState<'general' | 'porCliente' | 'porVendedor' | 'porRubro'>('general');
@@ -157,21 +163,69 @@ const Pedidos = () => {
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="flex-1 overflow-auto p-6">
-          <div className="grid gap-6">
-            {pedidosFinalizados.map((pedido) => {
-              const estadisticas = ReportsService.calcularEstadisticasPorRubro(pedido);
-              return (
-                <PedidoCard
-                  key={pedido.id}
-                  pedido={pedido}
-                  estadisticas={estadisticas}
-                  tipo="pedido"
-                />
-              );
-            })}
-          </div>
-        </div>
+        <Tabs defaultValue="carrito" className="flex-1 flex flex-col p-6">
+          <TabsList className="mb-6">
+            <TabsTrigger value="carrito" className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Mi Carrito ({carritosSinConfirmar.filter(c => c.cliente_id === clienteId).length})
+            </TabsTrigger>
+            <TabsTrigger value="pedidos" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Mis Pedidos ({pedidosFinalizados.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="carrito" className="flex-1 space-y-6">
+            <div className="space-y-4">
+              {carritosSinConfirmar
+                .filter(carrito => carrito.cliente_id === clienteId)
+                .map((carrito) => {
+                  const estadisticas = ReportsService.calcularEstadisticasPorRubro(carrito);
+                  return (
+                    <PedidoCard
+                      key={carrito.id}
+                      pedido={carrito}
+                      estadisticas={estadisticas}
+                      tipo="carrito"
+                    />
+                  );
+                })}
+              {carritosSinConfirmar.filter(c => c.cliente_id === clienteId).length === 0 && (
+                <div className="text-center py-12">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No hay productos en tu carrito</h3>
+                  <p className="text-muted-foreground mb-4">Agrega productos desde el catálogo para comenzar tu pedido</p>
+                  <Button onClick={() => navigate('/catalog')}>
+                    Ir al Catálogo
+                  </Button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="pedidos" className="flex-1 space-y-6">
+            <div className="space-y-4">
+              {pedidosFinalizados.map((pedido) => {
+                const estadisticas = ReportsService.calcularEstadisticasPorRubro(pedido);
+                return (
+                  <PedidoCard
+                    key={pedido.id}
+                    pedido={pedido}
+                    estadisticas={estadisticas}
+                    tipo="pedido"
+                  />
+                );
+              })}
+              {pedidosFinalizados.length === 0 && (
+                <div className="text-center py-12">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No tienes pedidos finalizados</h3>
+                  <p className="text-muted-foreground">Los pedidos aparecerán aquí una vez que sean autorizados</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PedidosService, type Pedido, type PedidoFilters, type CreatePedidoInput } from '@/services/pedidos.service';
 import { queryKeys, invalidateQueries } from '@/lib/queryClient';
 import { useToast } from './use-toast';
-import type { CartItem } from '@/services/cart-storage.service';
+import type { CartItem } from '@/services/supabase-cart.service';
 
 /**
  * Hook para obtener todos los pedidos
