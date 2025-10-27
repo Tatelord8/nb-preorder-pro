@@ -206,3 +206,4 @@ console.log("\n🚀 FUNCIONES DISPONIBLES:");
 console.log("   - diagnosticarClienteId() - Diagnostica el problema de cliente_id");
 console.log("   - crearClienteFaltante() - Crea el cliente faltante");
 console.log("\n💡 Ejecuta: diagnosticarClienteId()");
+

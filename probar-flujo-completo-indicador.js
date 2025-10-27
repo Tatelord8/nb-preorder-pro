@@ -202,3 +202,4 @@ window.probarFlujoCompletoIndicador = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarFlujoCompletoIndicador() - Prueba el flujo completo del indicador visual");
 console.log("\n💡 Ejecuta: probarFlujoCompletoIndicador()");
+

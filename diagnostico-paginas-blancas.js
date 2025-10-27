@@ -126,3 +126,4 @@ window.diagnosticarPaginasBlancas = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarPaginasBlancas() - Diagnostica páginas en blanco");
 console.log("\n💡 Ejecuta: diagnosticarPaginasBlancas()");
+

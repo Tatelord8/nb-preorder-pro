@@ -181,3 +181,4 @@ window.diagnosticarPedidosCompleto = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarPedidosCompleto() - Diagnóstico completo de pedidos");
 console.log("\n💡 Ejecuta: diagnosticarPedidosCompleto()");
+

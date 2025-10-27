@@ -68,3 +68,4 @@ window.probarHookUseCarritos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarHookUseCarritos() - Prueba el hook useCarritos actualizado");
 console.log("\n💡 Ejecuta: probarHookUseCarritos()");
+

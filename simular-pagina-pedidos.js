@@ -131,3 +131,4 @@ window.simularPaginaPedidos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - simularPaginaPedidos() - Simula completamente la página de Pedidos");
 console.log("\n💡 Ejecuta: simularPaginaPedidos()");
+

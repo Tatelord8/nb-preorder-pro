@@ -115,3 +115,4 @@ window.probarDetallesPedidos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarDetallesPedidos() - Prueba la corrección de detalles de pedidos");
 console.log("\n💡 Ejecuta: probarDetallesPedidos()");
+

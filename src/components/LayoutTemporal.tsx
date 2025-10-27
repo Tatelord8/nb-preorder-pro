@@ -117,3 +117,4 @@ const LayoutTemporal = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default LayoutTemporal;
+

@@ -157,3 +157,4 @@ console.log("\n🚀 FUNCIONES DISPONIBLES:");
 console.log("   - probarProductDetail(productId) - Diagnostica ProductDetail");
 console.log("   - navegarAProducto(productId) - Navega a un producto específico");
 console.log("\n💡 Ejecuta: probarProductDetail()");
+

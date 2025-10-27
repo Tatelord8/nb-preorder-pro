@@ -152,3 +152,4 @@ window.probarIndicadorSimple = async function() {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarIndicadorSimple() - Prueba simple del indicador visual");
 console.log("\n💡 Ejecuta: probarIndicadorSimple()");
+

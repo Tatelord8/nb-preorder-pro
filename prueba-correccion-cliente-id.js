@@ -225,3 +225,4 @@ window.probarCorreccionClienteId = async function() {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarCorreccionClienteId() - Prueba la corrección del cliente_id");
 console.log("\n💡 Ejecuta: probarCorreccionClienteId()");
+

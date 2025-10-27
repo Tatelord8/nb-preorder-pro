@@ -188,3 +188,4 @@ window.probarIndicadorProductosSeleccionados = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarIndicadorProductosSeleccionados() - Prueba el indicador visual de productos seleccionados");
 console.log("\n💡 Ejecuta: probarIndicadorProductosSeleccionados()");
+

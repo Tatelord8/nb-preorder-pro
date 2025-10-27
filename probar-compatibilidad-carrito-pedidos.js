@@ -114,3 +114,4 @@ window.probarCompatibilidadCarritoPedidos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarCompatibilidadCarritoPedidos() - Prueba la compatibilidad entre carrito y pedidos");
 console.log("\n💡 Ejecuta: probarCompatibilidadCarritoPedidos()");
+

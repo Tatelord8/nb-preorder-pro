@@ -165,3 +165,4 @@ window.probarLogicaJerarquicaTiers = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarLogicaJerarquicaTiers() - Prueba la lógica jerárquica de tiers");
 console.log("\n💡 Ejecuta: probarLogicaJerarquicaTiers()");
+

@@ -50,3 +50,4 @@ export const getAccessDeniedMessage = (userTier: string | null, productTier: str
 
   return "No tienes permisos para ver este producto.";
 };
+

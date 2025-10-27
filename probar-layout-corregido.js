@@ -114,3 +114,4 @@ window.probarLayoutCorregido = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarLayoutCorregido() - Prueba el Layout corregido");
 console.log("\n💡 Ejecuta: probarLayoutCorregido()");
+

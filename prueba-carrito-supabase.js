@@ -200,3 +200,4 @@ console.log("\n🚀 FUNCIONES DISPONIBLES:");
 console.log("   - probarCarritoSupabase() - Prueba completa del carrito de Supabase");
 console.log("   - limpiarCarritoSupabase() - Limpia el carrito de Supabase");
 console.log("\n💡 Ejecuta: probarCarritoSupabase()");
+

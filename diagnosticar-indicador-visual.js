@@ -230,3 +230,4 @@ window.diagnosticarIndicadorVisual = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarIndicadorVisual() - Diagnostica el indicador visual de productos seleccionados");
 console.log("\n💡 Ejecuta: diagnosticarIndicadorVisual()");
+

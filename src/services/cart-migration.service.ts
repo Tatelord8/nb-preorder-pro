@@ -204,3 +204,4 @@ export class CartMigrationService {
     console.log(`✅ ${keysToRemove.length} carritos eliminados de localStorage`);
   }
 }
+

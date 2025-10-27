@@ -181,3 +181,4 @@ window.diagnosticarPaginaPedidos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarPaginaPedidos() - Diagnóstico específico de página Pedidos");
 console.log("\n💡 Ejecuta: diagnosticarPaginaPedidos()");
+

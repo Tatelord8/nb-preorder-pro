@@ -141,3 +141,4 @@ console.log("==============================");
     console.error("❌ Error inesperado:", error);
   }
 })();
+

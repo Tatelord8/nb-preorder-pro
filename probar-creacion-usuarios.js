@@ -233,3 +233,4 @@ window.probarCreacionUsuarios = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarCreacionUsuarios() - Prueba la creación de usuarios");
 console.log("\n💡 Ejecuta: probarCreacionUsuarios()");
+

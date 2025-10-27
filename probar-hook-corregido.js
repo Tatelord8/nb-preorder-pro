@@ -87,3 +87,4 @@ window.probarHookCorregido = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarHookCorregido() - Prueba el hook useCarritos corregido");
 console.log("\n💡 Ejecuta: probarHookCorregido()");
+

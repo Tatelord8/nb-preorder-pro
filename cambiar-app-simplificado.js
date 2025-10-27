@@ -58,3 +58,4 @@ window.cambiarAppSimplificado = () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - cambiarAppSimplificado() - Instrucciones para cambiar a App simplificado");
 console.log("\n💡 Ejecuta: cambiarAppSimplificado()");
+

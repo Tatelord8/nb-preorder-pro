@@ -150,3 +150,4 @@ window.diagnosticarVisualizacionCarritos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarVisualizacionCarritos() - Diagnóstico detallado de visualización");
 console.log("\n💡 Ejecuta: diagnosticarVisualizacionCarritos()");
+

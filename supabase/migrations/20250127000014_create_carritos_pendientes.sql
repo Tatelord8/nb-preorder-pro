@@ -78,3 +78,4 @@ COMMENT ON COLUMN carritos_pendientes.tipo IS 'Tipo de curva: predefined o custo
 COMMENT ON COLUMN carritos_pendientes.genero IS 'Género del producto';
 COMMENT ON COLUMN carritos_pendientes.opcion IS 'Opción de la curva (1, 2, 3, etc.)';
 COMMENT ON COLUMN carritos_pendientes.precio_usd IS 'Precio en USD del producto';
+

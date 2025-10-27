@@ -171,3 +171,4 @@ window.canUserAccessTier = (userTier, productTier) => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarPaginaBlancaProductDetail() - Diagnostica el problema de página en blanco");
 console.log("\n💡 Ejecuta: diagnosticarPaginaBlancaProductDetail()");
+

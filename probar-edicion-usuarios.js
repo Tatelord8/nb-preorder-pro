@@ -174,3 +174,4 @@ window.probarEdicionUsuarios = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarEdicionUsuarios() - Prueba la edición de usuarios");
 console.log("\n💡 Ejecuta: probarEdicionUsuarios()");
+

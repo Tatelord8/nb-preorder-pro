@@ -133,3 +133,4 @@ window.probarSeguridadPedidos = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarSeguridadPedidos() - Prueba la seguridad de acceso a pedidos");
 console.log("\n💡 Ejecuta: probarSeguridadPedidos()");
+

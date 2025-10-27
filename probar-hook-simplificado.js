@@ -114,3 +114,4 @@ window.probarHookSimplificado = async () => {
 console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarHookSimplificado() - Prueba versiones simplificada y compleja del hook");
 console.log("\n💡 Ejecuta: probarHookSimplificado()");
+
