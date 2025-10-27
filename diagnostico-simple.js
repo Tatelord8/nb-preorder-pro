@@ -80,3 +80,5 @@ async function diagnosticarSimple() {
 // Ejecutar automáticamente
 diagnosticarSimple();
 
+
+

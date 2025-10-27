@@ -199,3 +199,5 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - probarHookUseCarritosEspecifico() - Prueba específica del hook useCarritos");
 console.log("\n💡 Ejecuta: probarHookUseCarritosEspecifico()");
 
+
+

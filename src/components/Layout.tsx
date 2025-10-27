@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
+import { usePedidosPendientesCount } from "@/hooks/usePedidosPendientesCount";
 import { 
   Sidebar, 
   SidebarContent, 
@@ -16,6 +17,7 @@ import {
   SidebarTrigger 
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -37,7 +39,8 @@ import {
   User,
   Settings,
   ChevronDown,
-  BarChart3
+  BarChart3,
+  ShieldCheck
 } from "lucide-react";
 
 interface LayoutProps {
@@ -51,6 +54,7 @@ const Layout = ({ children }: LayoutProps) => {
   const [clientName, setClientName] = useState<string>("");
   const [userName, setUserName] = useState<string>("");
   const { items: cartItems, loading: cartLoading, totals } = useSupabaseCart();
+  const { data: pedidosPendientesCount = 0 } = usePedidosPendientesCount();
 
   useEffect(() => {
     checkAuth();
@@ -221,6 +225,24 @@ const Layout = ({ children }: LayoutProps) => {
                   </SidebarMenuItem>
                 )}
 
+                {/* Autorización - Solo Superadmin */}
+                {userRole === "superadmin" && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => navigate("/autorizacion")}
+                      isActive={location.pathname === "/autorizacion"}
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Autorización</span>
+                      {pedidosPendientesCount > 0 && (
+                        <Badge variant="destructive" className="ml-auto">
+                          {pedidosPendientesCount}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
                 {/* Pedidos - All users */}
                 <SidebarMenuItem>
                   <SidebarMenuButton 
@@ -276,6 +298,7 @@ const Layout = ({ children }: LayoutProps) => {
                          location.pathname === "/users" ? "Usuarios" :
                          location.pathname === "/marcas" ? "Marcas" :
                          location.pathname === "/clientes" ? "Clientes" :
+                         location.pathname === "/autorizacion" ? "Autorización" :
                          location.pathname === "/pedidos" ? "Pedidos" :
                          location.pathname === "/reportes" ? "Reportes" : "Sistema"}
                       </p>

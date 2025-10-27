@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import * as XLSX from 'xlsx';
 import { 
   BarChart3, 
   Download, 
@@ -233,14 +234,140 @@ const Reportes = () => {
         description: "Generando archivo Excel...",
       });
 
-      // Aquí implementarías la lógica de exportación a Excel
-      // Por ahora solo mostramos un mensaje
-      setTimeout(() => {
+      if (!reportData) {
         toast({
-          title: "Éxito",
-          description: "Reporte exportado a Excel correctamente",
+          title: "Error",
+          description: "No hay datos para exportar",
+          variant: "destructive",
         });
-      }, 2000);
+        return;
+      }
+
+      // Crear archivo Excel con formato específico
+      const wb = XLSX.utils.book_new();
+
+      // Reporte Detallado con formato específico
+      if (reportData.totalPedidos > 0) {
+        try {
+          // Obtener pedidos detallados con información de tallas
+          let pedidosQuery = supabase
+            .from('pedidos')
+            .select(`
+              id,
+              total_usd,
+              estado,
+              created_at,
+              cliente_id,
+              vendedor_id,
+              items_pedido(
+                cantidad,
+                subtotal_usd,
+                talles_cantidades,
+                productos(sku, nombre, rubro, precio_usd, fecha_despacho)
+              ),
+              clientes(nombre),
+              vendedores(nombre)
+            `)
+            .eq('estado', 'autorizado');
+
+          // Aplicar filtros
+          if (filters.vendedor !== 'all') {
+            pedidosQuery = pedidosQuery.eq('vendedor_id', filters.vendedor);
+          }
+          if (filters.cliente !== 'all') {
+            pedidosQuery = pedidosQuery.eq('cliente_id', filters.cliente);
+          }
+
+          const { data: pedidosDetallados } = await pedidosQuery;
+
+          if (pedidosDetallados && pedidosDetallados.length > 0) {
+            const detalleData = [
+              ['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho']
+            ];
+
+            pedidosDetallados.forEach(pedido => {
+              if (pedido.items_pedido && pedido.items_pedido.length > 0) {
+                pedido.items_pedido.forEach((item: any) => {
+                  const clienteNombre = pedido.clientes?.nombre || 'N/A';
+                  const vendedorNombre = pedido.vendedores?.nombre || 'Sin vendedor';
+                  const sku = item.productos?.sku || 'N/A';
+                  const precio = item.productos?.precio_usd || 0;
+                  const fechaDespacho = item.productos?.fecha_despacho || 'Sin fecha';
+                  
+                  // Procesar talles_cantidades si existe
+                  if (item.talles_cantidades && typeof item.talles_cantidades === 'object') {
+                    Object.entries(item.talles_cantidades).forEach(([talla, cantidad]) => {
+                      if (cantidad && cantidad > 0) {
+                        detalleData.push([
+                          clienteNombre,
+                          vendedorNombre,
+                          sku,
+                          talla,
+                          cantidad,
+                          precio,
+                          fechaDespacho
+                        ]);
+                      }
+                    });
+                  } else {
+                    // Si no hay talles_cantidades, usar la cantidad total
+                    detalleData.push([
+                      clienteNombre,
+                      vendedorNombre,
+                      sku,
+                      'Sin especificar',
+                      item.cantidad || 0,
+                      precio,
+                      fechaDespacho
+                    ]);
+                  }
+                });
+              }
+            });
+
+            const wsDetalle = XLSX.utils.aoa_to_sheet(detalleData);
+            XLSX.utils.book_append_sheet(wb, wsDetalle, 'Reporte');
+          }
+        } catch (error) {
+          console.error('Error obteniendo detalles de pedidos:', error);
+          // Crear hoja vacía si hay error
+          const emptyData = [['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho'], ['Sin datos disponibles', '', '', '', '', '', '']];
+          const wsEmpty = XLSX.utils.aoa_to_sheet(emptyData);
+          XLSX.utils.book_append_sheet(wb, wsEmpty, 'Reporte');
+        }
+      } else {
+        // Crear hoja vacía si no hay pedidos
+        const emptyData = [['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho'], ['Sin datos disponibles', '', '', '', '', '', '']];
+        const wsEmpty = XLSX.utils.aoa_to_sheet(emptyData);
+        XLSX.utils.book_append_sheet(wb, wsEmpty, 'Reporte');
+      }
+
+      // Generar nombre del archivo con fecha y filtros
+      const fecha = new Date().toISOString().split('T')[0];
+      const filtrosTexto = [];
+      if (filters.vendedor !== 'all') {
+        const vendedor = vendedores.find(v => v.id === filters.vendedor);
+        filtrosTexto.push(`Vendedor_${vendedor?.nombre || 'Desconocido'}`);
+      }
+      if (filters.cliente !== 'all') {
+        const cliente = clientes.find(c => c.id === filters.cliente);
+        filtrosTexto.push(`Cliente_${cliente?.nombre || 'Desconocido'}`);
+      }
+      if (filters.rubro !== 'all') {
+        filtrosTexto.push(`Rubro_${filters.rubro}`);
+      }
+      
+      const nombreArchivo = filtrosTexto.length > 0 
+        ? `Reporte_Ventas_${filtrosTexto.join('_')}_${fecha}.xlsx`
+        : `Reporte_Ventas_Completo_${fecha}.xlsx`;
+
+      // Descargar archivo
+      XLSX.writeFile(wb, nombreArchivo);
+
+      toast({
+        title: "Éxito",
+        description: `Reporte exportado como ${nombreArchivo}`,
+      });
 
     } catch (error) {
       console.error('Error exportando reporte:', error);

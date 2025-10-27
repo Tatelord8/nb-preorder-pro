@@ -118,3 +118,5 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - crearLayoutSimplificado() - Crea un Layout simplificado para probar");
 console.log("\n💡 Ejecuta: crearLayoutSimplificado()");
 
+
+

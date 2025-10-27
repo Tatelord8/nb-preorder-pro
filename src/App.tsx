@@ -19,6 +19,7 @@ import Productos from "./pages/Productos";
 import Clientes from "./pages/Clientes";
 import Pedidos from "./pages/Pedidos";
 import Reportes from "./pages/Reportes";
+import Autorizacion from "./pages/Autorizacion";
 import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
@@ -121,6 +122,13 @@ const App = () => (
             <SidebarProvider>
               <Layout>
                 <Reportes />
+              </Layout>
+            </SidebarProvider>
+          } />
+          <Route path="/autorizacion" element={
+            <SidebarProvider>
+              <Layout>
+                <Autorizacion />
               </Layout>
             </SidebarProvider>
           } />

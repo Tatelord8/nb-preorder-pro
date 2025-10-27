@@ -201,3 +201,5 @@ console.log("   - probarCarritoSupabase() - Prueba completa del carrito de Supab
 console.log("   - limpiarCarritoSupabase() - Limpia el carrito de Supabase");
 console.log("\n💡 Ejecuta: probarCarritoSupabase()");
 
+
+
