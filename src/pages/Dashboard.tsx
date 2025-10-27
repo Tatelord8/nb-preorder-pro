@@ -105,12 +105,40 @@ const Dashboard = () => {
     try {
       setLoadingSKUData(true);
 
-      // 1. Obtener todos los productos
-      const { data: todosProductos, error: productosError } = await supabase
-        .from("productos")
-        .select("id, sku, nombre, rubro");
-
-      if (productosError) throw productosError;
+      // 1. Obtener todos los productos usando paginación
+      console.log("🔍 Iniciando carga de productos con paginación...");
+      
+      let todosProductos: any[] = [];
+      let offset = 0;
+      const limit = 1000; // Límite por página
+      let hasMore = true;
+      
+      while (hasMore) {
+        console.log(`🔍 Cargando productos desde ${offset} hasta ${offset + limit - 1}...`);
+        
+        const { data: productosPage, error: productosError } = await supabase
+          .from("productos")
+          .select("id, sku, nombre, rubro")
+          .range(offset, offset + limit - 1);
+        
+        if (productosError) throw productosError;
+        
+        if (productosPage && productosPage.length > 0) {
+          todosProductos = [...todosProductos, ...productosPage];
+          console.log(`✅ Cargados ${productosPage.length} productos. Total acumulado: ${todosProductos.length}`);
+          
+          // Si obtenemos menos productos que el límite, hemos llegado al final
+          if (productosPage.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      console.log(`✅ Total de productos cargados: ${todosProductos.length}`);
 
       // 2. Obtener todos los productos que han sido seleccionados (de pedidos finalizados y carritos)
       const { data: productosSeleccionados } = await supabase

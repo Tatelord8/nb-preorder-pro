@@ -106,24 +106,19 @@ const Catalog = () => {
 
       // Consultar tier desde user_roles y tiers
       try {
-        // Obtener tier_id desde user_roles
+        // Obtener tier desde user_roles
         const { data: userRoleData, error: userRoleError } = await supabase
           .from('user_roles')
-          .select('tier_id, role')
+          .select('tier, role')
           .eq('user_id', session.user.id)
           .maybeSingle();
 
-        console.log("🔍 user_roles tier_id data:", userRoleData);
+        console.log("🔍 user_roles tier data:", userRoleData);
         console.log("🔍 user_roles error:", userRoleError);
         console.log("🔍 user_roles complete data:", JSON.stringify(userRoleData));
 
-                  if (userRoleData && userRoleData.tier_id !== null) {
-          const tierId = userRoleData.tier_id;
-          console.log("🔍 Tier ID obtenido:", tierId);
-
-          // tier_id en user_roles ES el número del tier directamente
-          // No necesitamos consultar tiers, el tier_id ya contiene el número
-          const tier = tierId.toString();
+        if (userRoleData && userRoleData.tier !== null) {
+          const tier = userRoleData.tier;
           console.log("🔍 Tier obtenido:", tier);
           setUserTier(tier);
           return tier;

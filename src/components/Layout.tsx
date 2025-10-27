@@ -84,25 +84,55 @@ const Layout = ({ children }: LayoutProps) => {
       return;
     }
 
-    // Get user role and name
+    console.log("🔍 Debug Layout - Session user ID:", session.user.id);
+    console.log("🔍 Debug Layout - Session user email:", session.user.email);
+
+    // Get user role and name - consulta simplificada sin JOIN
     const { data: userRole, error } = await supabase
       .from("user_roles")
-      .select("role, nombre, clientes(nombre)")
+      .select("role, nombre, cliente_id")
       .eq("user_id", session.user.id)
       .single();
 
     console.log("🔍 Debug Layout - userRole data:", userRole);
     console.log("🔍 Debug Layout - userRole error:", error);
 
+    if (error) {
+      console.log("🔍 Debug Layout - Error details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+    }
+
     if (userRole) {
       console.log("🔍 Debug Layout - Setting userRole to:", userRole.role);
       setUserRole(userRole.role);
       setUserName(userRole.nombre || "Usuario");
-      if (userRole.clientes) {
-        setClientName((userRole.clientes as any).nombre);
+      
+      // Si hay cliente_id, obtener nombre del cliente por separado
+      if (userRole.cliente_id) {
+        try {
+          const { data: cliente, error: clienteError } = await supabase
+            .from("clientes")
+            .select("nombre")
+            .eq("id", userRole.cliente_id)
+            .single();
+          
+          if (clienteError) {
+            console.log("🔍 Debug Layout - Error obteniendo cliente:", clienteError);
+          } else if (cliente) {
+            setClientName(cliente.nombre);
+            console.log("🔍 Debug Layout - Client name set to:", cliente.nombre);
+          }
+        } catch (err) {
+          console.log("🔍 Debug Layout - Exception obteniendo cliente:", err);
+        }
       }
     } else {
       console.log("🔍 Debug Layout - No userRole found");
+      console.log("🔍 Debug Layout - This means the user is not in user_roles table");
     }
   };
 

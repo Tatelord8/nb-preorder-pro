@@ -314,7 +314,7 @@ export type Database = {
           marca_id: string | null
           nombre: string | null
           role: string
-          tier_id: number | null
+          tier: string | null
           user_id: string
         }
         Insert: {
@@ -324,7 +324,7 @@ export type Database = {
           marca_id?: string | null
           nombre?: string | null
           role: string
-          tier_id?: number | null
+          tier?: string | null
           user_id: string
         }
         Update: {
@@ -334,7 +334,7 @@ export type Database = {
           marca_id?: string | null
           nombre?: string | null
           role?: string
-          tier_id?: number | null
+          tier?: string | null
           user_id?: string
         }
         Relationships: [
@@ -343,13 +343,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_tier_id_fkey"
-            columns: ["tier_id"]
-            isOneToOne: false
-            referencedRelation: "tiers"
             referencedColumns: ["id"]
           },
           {
