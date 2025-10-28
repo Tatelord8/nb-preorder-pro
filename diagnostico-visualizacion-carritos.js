@@ -156,3 +156,4 @@ console.log("\n💡 Ejecuta: diagnosticarVisualizacionCarritos()");
 
 
 
+
