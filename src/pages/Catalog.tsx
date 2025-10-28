@@ -342,12 +342,12 @@ const Catalog = () => {
                 <Check className="h-4 w-4" />
               </div>
             )}
-            <div className="aspect-square bg-muted flex items-center justify-center">
+            <div className="aspect-square bg-white flex items-center justify-center p-4">
               {producto.imagen_url ? (
                 <img
                   src={producto.imagen_url}
                   alt={producto.nombre}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="text-muted-foreground text-center p-4">

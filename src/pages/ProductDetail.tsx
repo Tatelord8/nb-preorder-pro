@@ -344,14 +344,14 @@ const ProductDetail = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           <div>
-            <div className={`aspect-square bg-muted rounded-lg overflow-hidden ${
+            <div className={`aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center p-6 ${
               producto.game_plan ? "ring-4 ring-gameplan" : ""
             }`}>
               {producto.imagen_url ? (
                 <img
                   src={producto.imagen_url}
                   alt={producto.nombre}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
