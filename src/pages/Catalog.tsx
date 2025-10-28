@@ -43,6 +43,10 @@ const Catalog = () => {
   const [selectedRubro, setSelectedRubro] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string | null>(null);
   const { items: cartItems, loading: cartLoading, isProductInCart } = useSupabaseCart();
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(24); // 24 productos por página (6x4 grid)
 
   useEffect(() => {
     // Cargar tier del usuario al montar el componente
@@ -229,6 +233,17 @@ const Catalog = () => {
     producto.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Paginación de productos filtrados
+  const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProductos = filteredProductos.slice(startIndex, endIndex);
+  
+  // Reset a página 1 cuando cambian los filtros o búsqueda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRubro]);
+
   // Mostrar banners de rubros si no hay rubro seleccionado
   if (!selectedRubro) {
     return (
@@ -336,7 +351,7 @@ const Catalog = () => {
 
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProductos.map((producto) => (
+        {paginatedProductos.map((producto) => (
           <Card 
             key={producto.id} 
             className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
@@ -412,6 +427,63 @@ const Catalog = () => {
           </div>
         )}
       </div>
+
+      {/* Controles de paginación */}
+      {filteredProductos.length > itemsPerPage && (
+        <div className="p-6 border-t bg-background">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProductos.length)} de {filteredProductos.length} productos
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-10"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

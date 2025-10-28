@@ -88,6 +88,10 @@ const Productos = () => {
   const [filterRubro, setFilterRubro] = useState("all");
   const [filterMarca, setFilterMarca] = useState("all");
   
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(50); // 50 productos por página
+  
   // Carga masiva states
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -918,6 +922,17 @@ const Productos = () => {
     return matchesSearch && matchesRubro && matchesMarca;
   });
 
+  // Paginación de productos filtrados
+  const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProductos = filteredProductos.slice(startIndex, endIndex);
+  
+  // Reset a página 1 cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRubro, filterMarca]);
+
   const getRubroBadge = (rubro: string) => {
     const variants = {
       "Calzados": "default",
@@ -1420,7 +1435,7 @@ const Productos = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProductos.map((producto) => (
+                  {paginatedProductos.map((producto) => (
                     <TableRow key={producto.id}>
                       <TableCell className="font-medium">{producto.sku}</TableCell>
                       <TableCell>{producto.nombre}</TableCell>
@@ -1493,6 +1508,61 @@ const Productos = () => {
                       ? "Intenta ajustar los filtros de búsqueda" 
                       : "No hay productos en el catálogo"}
                   </p>
+                </div>
+              )}
+
+              {/* Controles de paginación */}
+              {filteredProductos.length > itemsPerPage && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProductos.length)} de {filteredProductos.length} productos
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>
