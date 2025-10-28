@@ -275,7 +275,8 @@ const Productos = () => {
             nombre
           )
         `)
-        .order("nombre", { ascending: true });
+        .order("nombre", { ascending: true })
+        .range(0, 4999); // Traer hasta 5000 productos (límite predeterminado es 1000)
 
       if (error) {
         console.error("❌ Error loading productos:", error);
@@ -910,7 +911,8 @@ const Productos = () => {
     try {
       const { data: productos } = await supabase
         .from('productos')
-        .select('id, imagen_url');
+        .select('id, imagen_url')
+        .range(0, 4999); // Traer hasta 5000 productos
       
       if (productos) {
         const withImage = productos.filter(p => p.imagen_url).length;
@@ -1111,7 +1113,8 @@ const Productos = () => {
       .from('productos')
       .select('sku, nombre')
       .is('imagen_url', null)
-      .order('sku');
+      .order('sku')
+      .range(0, 4999); // Traer hasta 5000 productos sin imagen
     
     if (data && data.length > 0) {
       // Crear CSV
