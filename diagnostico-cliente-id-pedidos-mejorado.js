@@ -157,3 +157,6 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - diagnosticarClienteIdPedidosMejorado() - Diagnostica el problema de cliente_id en pedidos");
 console.log("\n💡 Ejecuta: diagnosticarClienteIdPedidosMejorado()");
 
+
+
+

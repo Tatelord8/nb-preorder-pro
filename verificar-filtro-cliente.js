@@ -141,3 +141,6 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - verificarFiltroCliente() - Verifica que el filtro por cliente funciona correctamente");
 console.log("\n💡 Ejecuta: verificarFiltroCliente()");
 
+
+
+

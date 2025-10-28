@@ -49,3 +49,6 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - cambiarCartSimplificado() - Instrucciones para cambiar a Cart simplificado");
 console.log("\n💡 Ejecuta: cambiarCartSimplificado()");
 
+
+
+

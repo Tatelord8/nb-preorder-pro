@@ -119,3 +119,6 @@ diagnosticarConResultados().then(() => {
   console.error("❌ Error en diagnóstico:", error);
 });
 
+
+
+

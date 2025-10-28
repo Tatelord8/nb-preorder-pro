@@ -28,6 +28,7 @@ interface ProductoDetalle {
   linea?: string;
   categoria?: string;
   genero?: string;
+  rubro?: string;
   imagen_url?: string;
 }
 
@@ -78,7 +79,7 @@ const Cart = () => {
       if (productIds.length > 0) {
         const { data } = await supabase
           .from("productos")
-          .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url")
+          .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url, rubro")
           .in("id", productIds);
 
         if (data) {
@@ -142,14 +143,24 @@ const Cart = () => {
       if (pedidoError) throw pedidoError;
 
       // Create order items
-      const itemsToInsert = cartItems.map((item) => ({
-        pedido_id: pedido.id,
-        producto_id: item.productoId,
-        cantidad: calculateTotalQuantity(item.talles, item.cantidadCurvas),
-        precio_unitario: productos[item.productoId]?.precio_usd || 0,
-        subtotal_usd: calculateSubtotal(item),
-        talles_cantidades: item.talles,
-      }));
+      const itemsToInsert = cartItems.map((item) => {
+        console.log('🔍 Debug itemsToInsert - item.talles:', {
+          productoId: item.productoId,
+          itemTalles: item.talles,
+          tallesKeys: Object.keys(item.talles || {}),
+          tallesValues: Object.values(item.talles || {}),
+          cantidadCurvas: item.cantidadCurvas
+        });
+        
+        return {
+          pedido_id: pedido.id,
+          producto_id: item.productoId,
+          cantidad: calculateTotalQuantity(item.talles, item.cantidadCurvas),
+          precio_unitario: productos[item.productoId]?.precio_usd || 0,
+          subtotal_usd: calculateSubtotal(item),
+          talles_cantidades: item.talles,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("items_pedido")
@@ -157,8 +168,8 @@ const Cart = () => {
 
       if (itemsError) throw itemsError;
 
-      // Generate Excel
-      generateExcel(pedido.id);
+      // Generate Excel using the data we just saved
+      generateExcel(pedido.id, itemsToInsert);
 
       // Clear cart
       await clearCart();
@@ -216,20 +227,102 @@ const Cart = () => {
     }
   };
 
-  const generateExcel = (pedidoId: string) => {
-    const data = cartItems.map((item, index) => {
-      const producto = productos[item.productoId];
-      return {
-        "N°": index + 1,
-        "SKU": producto?.sku || "",
-        "Producto": producto?.nombre || "",
-        "Cantidad": calculateTotalQuantity(item.talles, item.cantidadCurvas),
-        "Precio Unitario": producto?.precio_usd || 0,
-        "Subtotal": calculateSubtotal(item),
-      };
+  const generateExcel = (pedidoId: string, itemsData: any[]) => {
+    // Debug: Log de los datos que vamos a usar
+    console.log('🔍 Debug generateExcel - DATOS GUARDADOS:', {
+      pedidoId: pedidoId,
+      itemsData: itemsData,
+      itemsDataLength: itemsData.length
     });
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    // Crear headers en el orden correcto
+    const headers = [
+      "SKU",
+      "Producto", 
+      "Precio Unitario",
+      "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12",
+      "S", "M", "L", "XL", "XXL", "XS",
+      "Cantidad",
+      "Subtotal"
+    ];
+
+    // Crear array de arrays para mantener el orden
+    const excelData = [headers]; // Primera fila son los headers
+
+    itemsData.forEach(itemData => {
+      const producto = productos[itemData.producto_id];
+      
+      // Crear fila con valores en el mismo orden que los headers
+      const row = new Array(headers.length).fill(0);
+      
+      // Llenar datos básicos
+      row[0] = producto?.sku || ""; // SKU
+      row[1] = producto?.nombre || ""; // Producto
+      row[2] = itemData.precio_unitario || 0; // Precio Unitario
+
+      // Determinar las tallas según el rubro del producto
+      let tallasCalzados: string[] = [];
+      let tallasPrendas: string[] = [];
+      
+      if (producto?.rubro?.toLowerCase() === 'calzados') {
+        // Tallas de calzados según género
+        if (producto?.genero?.toLowerCase() === 'mens') {
+          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'];
+        } else if (producto?.genero?.toLowerCase() === 'womens') {
+          tallasCalzados = ['6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10'];
+        } else {
+          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'];
+        }
+      } else if (producto?.rubro?.toLowerCase() === 'prendas') {
+        // Tallas de prendas según género
+        if (producto?.genero?.toLowerCase() === 'mens') {
+          tallasPrendas = ['S', 'M', 'L', 'XL', 'XXL'];
+        } else if (producto?.genero?.toLowerCase() === 'womens') {
+          tallasPrendas = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+        } else {
+          tallasPrendas = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+        }
+      }
+
+      // Debug: Log completo del item
+      console.log('🔍 Debug generateExcel - ITEM COMPLETO:', {
+        itemData: itemData,
+        producto: producto?.nombre,
+        rubro: producto?.rubro,
+        genero: producto?.genero,
+        tallesCantidades: itemData.talles_cantidades,
+        tallasCalzados,
+        tallasPrendas,
+        tallesKeys: Object.keys(itemData.talles_cantidades || {}),
+        tallesValues: Object.values(itemData.talles_cantidades || {})
+      });
+
+      // Llenar cantidades de calzados usando talles_cantidades
+      tallasCalzados.forEach(talle => {
+        const index = headers.indexOf(talle);
+        if (index !== -1 && itemData.talles_cantidades && itemData.talles_cantidades[talle]) {
+          row[index] = itemData.talles_cantidades[talle];
+          console.log(`📊 Calzado ${talle}: ${itemData.talles_cantidades[talle]}`);
+        }
+      });
+
+      // Llenar cantidades de prendas usando talles_cantidades
+      tallasPrendas.forEach(talle => {
+        const index = headers.indexOf(talle);
+        if (index !== -1 && itemData.talles_cantidades && itemData.talles_cantidades[talle]) {
+          row[index] = itemData.talles_cantidades[talle];
+          console.log(`👕 Prenda ${talle}: ${itemData.talles_cantidades[talle]}`);
+        }
+      });
+
+      // Usar la cantidad total que ya está calculada
+      row[headers.indexOf("Cantidad")] = itemData.cantidad;
+      row[headers.indexOf("Subtotal")] = itemData.subtotal_usd;
+      
+      excelData.push(row);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Pedido");
 

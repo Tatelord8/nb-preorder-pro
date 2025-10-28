@@ -113,3 +113,6 @@ console.log("\n🚀 FUNCIÓN DISPONIBLE:");
 console.log("   - verificarSupabaseYDiagnosticar() - Verifica Supabase y ejecuta diagnóstico");
 console.log("\n💡 Ejecuta: verificarSupabaseYDiagnosticar()");
 
+
+
+

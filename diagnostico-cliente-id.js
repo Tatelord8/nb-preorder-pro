@@ -207,3 +207,6 @@ console.log("   - diagnosticarClienteId() - Diagnostica el problema de cliente_i
 console.log("   - crearClienteFaltante() - Crea el cliente faltante");
 console.log("\n💡 Ejecuta: diagnosticarClienteId()");
 
+
+
+
