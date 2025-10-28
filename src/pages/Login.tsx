@@ -199,9 +199,16 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8">
-            <div className="text-center space-y-2 mb-8">
-              <h1 className="text-3xl font-bold">Gestor de Preventas Optima</h1>
-              <p className="text-muted-foreground">Guata Pora S.A</p>
+            <div className="text-center space-y-4 mb-8">
+              <div className="flex justify-center mb-4">
+                <img 
+                  src="https://www.pngmart.com/files/23/New-Balance-Logo-PNG-Isolated-HD.png" 
+                  alt="New Balance Logo" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
+              <h1 className="text-3xl font-bold leading-[1.1]">Preventa New Balance</h1>
+              <p className="text-muted-foreground">Optima S.A</p>
             </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

@@ -135,13 +135,15 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="flex h-screen w-full">
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-4 py-2">
-            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">GPO</span>
-            </div>
+          <div className="flex items-center gap-3 px-4 py-2">
+            <img 
+              src="https://www.pngmart.com/files/23/New-Balance-Logo-PNG-Isolated-HD.png" 
+              alt="New Balance Logo" 
+              className="w-10 h-10 object-contain"
+            />
             <div>
-              <h2 className="font-semibold">Gestor de Preventas Optima</h2>
-              <p className="text-xs text-muted-foreground">Guata Pora S.A</p>
+              <h2 className="font-semibold">New Balance</h2>
+              <p className="text-xs text-muted-foreground">Optima S.A</p>
             </div>
           </div>
         </SidebarHeader>
@@ -290,7 +292,7 @@ const Layout = ({ children }: LayoutProps) => {
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
                     <div>
-                      <h1 className="text-2xl font-bold">Gestor de Preventas Optima</h1>
+                      <h1 className="text-2xl font-bold">Preventa New Balance</h1>
                       <p className="text-sm text-muted-foreground">
                         {location.pathname === "/catalog" ? "Catálogo" : 
                          location.pathname === "/dashboard" ? "Dashboard" :
