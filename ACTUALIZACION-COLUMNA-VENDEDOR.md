@@ -150,3 +150,4 @@ Sport Max | Sin vendedor | NB002 | 9 | 3 | 95.50 | 2024-04-15
 
 El reporte ahora incluye la información del vendedor, proporcionando una vista completa de quién realizó cada venta y facilitando el análisis de performance por vendedor.
 
+

@@ -51,3 +51,4 @@ console.log("\n💡 Ejecuta: cambiarCartSimplificado()");
 
 
 
+

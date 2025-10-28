@@ -81,3 +81,4 @@ COMMENT ON COLUMN carritos_pendientes.precio_usd IS 'Precio en USD del producto'
 
 
 
+

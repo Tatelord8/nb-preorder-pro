@@ -140,3 +140,4 @@ graph TD
 - [ ] Modal de edición inline
 - [ ] Aprobación masiva de pedidos
 
+

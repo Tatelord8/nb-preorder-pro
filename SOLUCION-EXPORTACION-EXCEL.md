@@ -120,3 +120,4 @@ El botón "Exportar Excel" en la página de Reportes no descargaba realmente el 
 
 La funcionalidad de exportación Excel ahora está completamente operativa y proporciona reportes detallados y útiles para análisis de ventas.
 
+
