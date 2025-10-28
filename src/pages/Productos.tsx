@@ -265,31 +265,57 @@ const Productos = () => {
     try {
       console.log("🔄 Loading productos from database...");
       
-      // Consulta optimizada con campos específicos y JOIN con marcas
-      const { data, error } = await supabase
+      // Obtener el total primero
+      const { count } = await supabase
         .from("productos")
-        .select(`
-          *,
-          marcas (
-            id,
-            nombre
-          )
-        `)
-        .order("nombre", { ascending: true })
-        .range(0, 4999); // Traer hasta 5000 productos (límite predeterminado es 1000)
-
-      if (error) {
-        console.error("❌ Error loading productos:", error);
-        toast({
-          title: "Error de base de datos",
-          description: `No se pudieron cargar los productos: ${error.message}`,
-          variant: "destructive",
-        });
+        .select("*", { count: 'exact', head: true });
+      
+      console.log(`🔍 Total productos en DB: ${count}`);
+      
+      if (!count) {
+        setProductos([]);
         return;
       }
+      
+      // Cargar en páginas de 1000 (límite de Supabase)
+      const pageSize = 1000;
+      const totalPages = Math.ceil(count / pageSize);
+      let allProductos: any[] = [];
+      
+      for (let page = 0; page < totalPages; page++) {
+        const start = page * pageSize;
+        const end = start + pageSize - 1;
+        
+        console.log(`🔄 Cargando página ${page + 1}/${totalPages} (${start}-${end})...`);
+        
+        const { data, error } = await supabase
+          .from("productos")
+          .select(`
+            *,
+            marcas (
+              id,
+              nombre
+            )
+          `)
+          .order("nombre", { ascending: true })
+          .range(start, end);
+        
+        if (error) {
+          console.error("❌ Error loading productos:", error);
+          toast({
+            title: "Error de base de datos",
+            description: `No se pudieron cargar los productos: ${error.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        allProductos = [...allProductos, ...(data || [])];
+        console.log(`✅ Cargados ${data?.length || 0} productos (Total acumulado: ${allProductos.length})`);
+      }
 
-      console.log(`✅ Loaded ${data?.length || 0} productos from database`);
-      setProductos((data as any) || []);
+      console.log(`✅ Loaded ${allProductos.length} productos from database`);
+      setProductos(allProductos);
     } catch (error: any) {
       console.error("❌ Exception loading products:", error);
       toast({
@@ -909,21 +935,43 @@ const Productos = () => {
   // Image Management Functions
   const loadImageStats = async () => {
     try {
-      const { data: productos } = await supabase
+      // Obtener el total
+      const { count } = await supabase
         .from('productos')
-        .select('id, imagen_url')
-        .range(0, 4999); // Traer hasta 5000 productos
+        .select('id', { count: 'exact', head: true });
       
-      if (productos) {
-        const withImage = productos.filter(p => p.imagen_url).length;
-        const withoutImage = productos.filter(p => !p.imagen_url).length;
-        
-        setImageStats({
-          total: productos.length,
-          withImage,
-          withoutImage
-        });
+      if (!count) {
+        setImageStats({ total: 0, withImage: 0, withoutImage: 0 });
+        return;
       }
+      
+      // Cargar en páginas de 1000
+      const pageSize = 1000;
+      const totalPages = Math.ceil(count / pageSize);
+      let allProductos: any[] = [];
+      
+      for (let page = 0; page < totalPages; page++) {
+        const start = page * pageSize;
+        const end = start + pageSize - 1;
+        
+        const { data } = await supabase
+          .from('productos')
+          .select('id, imagen_url')
+          .range(start, end);
+        
+        if (data) {
+          allProductos = [...allProductos, ...data];
+        }
+      }
+      
+      const withImage = allProductos.filter(p => p.imagen_url).length;
+      const withoutImage = allProductos.filter(p => !p.imagen_url).length;
+      
+      setImageStats({
+        total: allProductos.length,
+        withImage,
+        withoutImage
+      });
     } catch (error) {
       console.error("Error loading image stats:", error);
     }
@@ -1114,7 +1162,7 @@ const Productos = () => {
       .select('sku, nombre')
       .is('imagen_url', null)
       .order('sku')
-      .range(0, 4999); // Traer hasta 5000 productos sin imagen
+      .limit(10000); // Límite alto para traer todos
     
     if (data && data.length > 0) {
       // Crear CSV
