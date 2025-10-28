@@ -589,9 +589,13 @@ const Productos = () => {
         throw new Error('El archivo debe tener al menos una fila de encabezados y una fila de datos');
       }
       
-      // Procesar encabezados con mejor manejo de CSV
+      // Detectar separador CSV automáticamente
       const headerLine = lines[0];
-      const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+      const separator = detectCSVSeparator(headerLine);
+      console.log("🔍 Separador detectado:", separator === ',' ? 'coma' : separator === ';' ? 'punto y coma' : separator);
+      
+      // Procesar encabezados con el separador detectado
+      const headers = parseCSVLine(headerLine, separator).map(h => h.trim().toLowerCase());
       
       console.log("📋 Encabezados encontrados:", headers);
       
@@ -603,7 +607,7 @@ const Productos = () => {
         if (!line) continue;
         
         try {
-          const values = parseCSVLine(line);
+          const values = parseCSVLine(line, separator);
           const product: any = {};
           
           // Mapear valores a campos del producto
@@ -690,7 +694,7 @@ const Productos = () => {
   };
 
   // Función auxiliar para parsear líneas CSV correctamente
-  const parseCSVLine = (line: string): string[] => {
+  const parseCSVLine = (line: string, separator: string = ','): string[] => {
     const result = [];
     let current = '';
     let inQuotes = false;
@@ -700,7 +704,7 @@ const Productos = () => {
       
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
+      } else if (char === separator && !inQuotes) {
         result.push(current.trim());
         current = '';
       } else {
@@ -710,6 +714,23 @@ const Productos = () => {
     
     result.push(current.trim());
     return result;
+  };
+
+  // Función para detectar el separador del CSV
+  const detectCSVSeparator = (line: string): string => {
+    const possibleSeparators = [',', ';', '\t', '|'];
+    let maxCount = 0;
+    let detectedSeparator = ',';
+    
+    for (const sep of possibleSeparators) {
+      const count = (line.match(new RegExp(`\\${sep}`, 'g')) || []).length;
+      if (count > maxCount) {
+        maxCount = count;
+        detectedSeparator = sep;
+      }
+    }
+    
+    return detectedSeparator;
   };
 
   const handleMassUpload = async () => {
