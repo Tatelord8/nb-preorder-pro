@@ -733,6 +733,32 @@ const Productos = () => {
     return detectedSeparator;
   };
 
+  // Función para convertir fechas al formato PostgreSQL (YYYY-MM-DD)
+  const convertDateToPostgres = (dateString: string): string | null => {
+    if (!dateString || dateString.trim() === '') return null;
+    
+    try {
+      // Detectar formato dd/mm/yyyy o d/m/yyyy
+      const parts = dateString.split('/');
+      if (parts.length === 3) {
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+      }
+      
+      // Si ya está en formato correcto, retornar tal cual
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return dateString;
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Error convirtiendo fecha:', dateString);
+      return null;
+    }
+  };
+
   const handleMassUpload = async () => {
     if (!uploadedFile) return;
     
@@ -772,8 +798,8 @@ const Productos = () => {
             tier: product.tier,
             game_plan: product.game_plan === 'TRUE' || product.game_plan === 'true',
             imagen_url: product.imagen_url || null,
-            xfd: product.xfd || null,
-            fecha_despacho: product.fecha_despacho || null
+            xfd: convertDateToPostgres(product.xfd) || null,
+            fecha_despacho: convertDateToPostgres(product.fecha_despacho) || null
           };
           
           if (marcaId) productData.marca_id = marcaId;
