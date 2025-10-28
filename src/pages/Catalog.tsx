@@ -313,7 +313,15 @@ const Catalog = () => {
             <ArrowLeft className="h-4 w-4" />
             Volver a Categorías
           </Button>
-          <h2 className="text-xl font-semibold capitalize">{selectedRubro}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold capitalize">{selectedRubro}</h2>
+            <Badge variant="secondary">
+              {searchTerm ? 
+                `${filteredProductos.length} de ${productos.length}` : 
+                `${productos.length} productos`
+              }
+            </Badge>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />

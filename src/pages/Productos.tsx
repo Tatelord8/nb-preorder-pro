@@ -758,18 +758,18 @@ const Productos = () => {
           if (marcaId) productData.marca_id = marcaId;
           if (product.rubro) productData.rubro = product.rubro;
           
-          console.log(`🔄 Inserting product ${product.sku} into database...`);
+          console.log(`🔄 Processing product ${product.sku} (upserting)...`);
           
           const { data, error } = await supabase
             .from("productos")
-            .insert(productData)
+            .upsert(productData, { onConflict: 'sku' })
             .select();
           
           if (error) {
-            console.error(`❌ Error inserting product ${product.sku}:`, error);
+            console.error(`❌ Error upserting product ${product.sku}:`, error);
             uploadErrors.push(`Producto ${product.sku}: ${error.message}`);
           } else {
-            console.log(`✅ Product ${product.sku} inserted successfully:`, data);
+            console.log(`✅ Product ${product.sku} processed successfully:`, data);
             successCount++;
           }
           
@@ -787,7 +787,7 @@ const Productos = () => {
       if (successCount > 0) {
         toast({
           title: "Carga completada",
-          description: `${successCount} productos cargados exitosamente`,
+          description: `${successCount} productos procesados exitosamente (actualizados o insertados)`,
         });
         loadProductos(); // Recargar la lista
       }
