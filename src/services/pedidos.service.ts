@@ -257,7 +257,8 @@ export class PedidosService {
     try {
       // Calcular total
       const total_usd = input.items.reduce((sum, item) => {
-        const totalQty = Object.values(item.talles).reduce((q, qty) => q + qty, 0) * item.cantidad_curvas;
+        // Las cantidades en talles ya están multiplicadas por cantidad_curvas
+        const totalQty = Object.values(item.talles).reduce((q, qty) => q + qty, 0);
         return sum + (item.precio_unitario * totalQty);
       }, 0);
 
@@ -280,7 +281,8 @@ export class PedidosService {
 
       // Crear detalles del pedido
       const detalles: NewPedidoDetalle[] = input.items.map(item => {
-        const totalQty = Object.values(item.talles).reduce((q, qty) => q + qty, 0) * item.cantidad_curvas;
+        // Las cantidades en talles ya están multiplicadas por cantidad_curvas
+        const totalQty = Object.values(item.talles).reduce((q, qty) => q + qty, 0);
         return {
           pedido_id: pedido.id,
           producto_id: item.producto_id,
@@ -327,7 +329,7 @@ export class PedidosService {
       producto_id: item.productoId,
       curva_id: item.curvaId,
       cantidad_curvas: item.cantidadCurvas,
-      talles: item.talles,
+      talles: item.talles, // Las cantidades ya están multiplicadas por cantidadCurvas
       precio_unitario: productos[item.productoId]?.precio_usd || 0,
     }));
 

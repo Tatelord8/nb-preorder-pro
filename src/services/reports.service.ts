@@ -399,7 +399,8 @@ export class ReportsService {
           if (producto) {
             // Agregar fila por cada talle
             Object.entries(detalle.talles_cantidades).forEach(([talle, cantidad]) => {
-              const totalCantidad = (cantidad as number) * detalle.cantidad_curvas;
+              // Las cantidades en talles_cantidades ya están multiplicadas por cantidad_curvas
+              const totalCantidad = cantidad as number;
 
               excelData.push({
                 'Pedido ID': pedido.id.substring(0, 8),

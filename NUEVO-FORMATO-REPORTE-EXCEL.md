@@ -120,3 +120,5 @@ Deport Center | NB001 | 9.5 | 3 | 89.99
 El reporte ahora genera exactamente el formato solicitado: **Cliente | SKU | Talla | Cantidad | Precio**, con una fila por cada talla solicitada en cada pedido.
 
 
+
+

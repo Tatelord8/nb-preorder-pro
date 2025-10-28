@@ -121,3 +121,5 @@ console.log("\n💡 Ejecuta: crearLayoutSimplificado()");
 
 
 
+
+

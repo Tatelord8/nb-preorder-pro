@@ -98,15 +98,15 @@ const Cart = () => {
     }
   };
 
-  const calculateTotalQuantity = (talles: Record<string, number>, cantidadCurvas: number) => {
-    const baseTotal = Object.values(talles).reduce((sum, qty) => sum + qty, 0);
-    return baseTotal * cantidadCurvas;
+  const calculateTotalQuantity = (talles: Record<string, number>) => {
+    // Las cantidades en talles ya están multiplicadas por cantidadCurvas
+    return Object.values(talles).reduce((sum, qty) => sum + qty, 0);
   };
 
   const calculateSubtotal = (item: CartItem) => {
     const producto = productos[item.productoId];
     if (!producto) return 0;
-    const totalQty = calculateTotalQuantity(item.talles, item.cantidadCurvas);
+    const totalQty = calculateTotalQuantity(item.talles);
     return producto.precio_usd * totalQty;
   };
 
@@ -155,7 +155,7 @@ const Cart = () => {
         return {
           pedido_id: pedido.id,
           producto_id: item.productoId,
-          cantidad: calculateTotalQuantity(item.talles, item.cantidadCurvas),
+          cantidad: calculateTotalQuantity(item.talles),
           precio_unitario: productos[item.productoId]?.precio_usd || 0,
           subtotal_usd: calculateSubtotal(item),
           talles_cantidades: item.talles,
@@ -385,7 +385,7 @@ const Cart = () => {
                         <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
                         <div className="mt-2 space-y-1">
                           <p className="text-sm">
-                            <span className="font-medium">Cantidad:</span> {calculateTotalQuantity(item.talles, item.cantidadCurvas)} unidades
+                            <span className="font-medium">Cantidad:</span> {calculateTotalQuantity(item.talles)} unidades
                           </p>
                           <p className="text-sm">
                             <span className="font-medium">Precio unitario:</span> ${producto.precio_usd}

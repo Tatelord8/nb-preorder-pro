@@ -161,3 +161,5 @@ console.log("\n💡 Ejecuta: probarProductDetail()");
 
 
 
+
+
