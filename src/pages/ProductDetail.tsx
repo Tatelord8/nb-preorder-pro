@@ -54,6 +54,11 @@ const ProductDetail = () => {
   const [availableCurves, setAvailableCurves] = useState<CurveOption[]>([]);
   const [selectedPredefinedCurve, setSelectedPredefinedCurve] = useState<number>(1);
   const [appliedCurveQuantities, setAppliedCurveQuantities] = useState<Record<string, number>>({});
+  const [specialSizes, setSpecialSizes] = useState<Record<string, boolean>>({
+    '13': false,
+    '14': false,
+    '15': false
+  });
   const [userTier, setUserTier] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const { toast } = useToast();
@@ -104,7 +109,7 @@ const ProductDetail = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
       updateAppliedCurve();
     }
-  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas]);
+  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas, specialSizes]);
 
   // Verificar acceso cuando se carguen tanto el producto como el tier del usuario
   useEffect(() => {
@@ -117,7 +122,16 @@ const ProductDetail = () => {
   const updateAppliedCurve = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
       const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas);
-      setAppliedCurveQuantities(applied);
+      
+      // Agregar tallas especiales si están seleccionadas
+      const finalQuantities = { ...applied };
+      Object.keys(specialSizes).forEach(size => {
+        if (specialSizes[size]) {
+          finalQuantities[size] = (finalQuantities[size] || 0) + 6;
+        }
+      });
+      
+      setAppliedCurveQuantities(finalQuantities);
     }
   };
 
@@ -427,6 +441,37 @@ const ProductDetail = () => {
                     />
                   </div>
 
+                  {/* Seleccionar Tallas Especiales */}
+                  {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+                    <div className="space-y-2">
+                      <Label>Seleccionar Tallas Especiales</Label>
+                      <div className="text-sm text-gray-600 mb-2">
+                        Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
+                      </div>
+                      <div className="space-y-2">
+                        {['13', '14', '15'].map((size) => (
+                          <div key={size} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`special-${size}`}
+                              checked={specialSizes[size]}
+                              onChange={(e) => {
+                                setSpecialSizes({
+                                  ...specialSizes,
+                                  [size]: e.target.checked,
+                                });
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`special-${size}`} className="text-sm">
+                              Talla {size} (+6 unidades)
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Vista previa de las cantidades aplicadas */}
                   {Object.keys(appliedCurveQuantities).length > 0 && (
                     <div className="space-y-2">
@@ -452,17 +497,70 @@ const ProductDetail = () => {
                     {validSizes.map((talle) => (
                       <div key={talle} className="space-y-2">
                         <Label>{talle}</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={customTalles[talle] || 0}
-                          onChange={(e) =>
-                            setCustomTalles({
-                              ...customTalles,
-                              [talle]: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
+                        {['13', '14', '15'].includes(talle) && 
+                         producto?.rubro?.toLowerCase() === 'calzados' && 
+                         producto?.genero?.toLowerCase() === 'mens' ? (
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={customTalles[talle] || 0}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0;
+                                const allowedValue = value === 6 ? 6 : 0;
+                                setCustomTalles({
+                                  ...customTalles,
+                                  [talle]: allowedValue,
+                                });
+                              }}
+                              className="flex-1"
+                            />
+                            <div className="flex flex-col">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-4 w-6 p-0"
+                                onClick={() => {
+                                  const currentValue = customTalles[talle] || 0;
+                                  setCustomTalles({
+                                    ...customTalles,
+                                    [talle]: currentValue === 0 ? 6 : 6,
+                                  });
+                                }}
+                              >
+                                ↑
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-4 w-6 p-0"
+                                onClick={() => {
+                                  const currentValue = customTalles[talle] || 0;
+                                  setCustomTalles({
+                                    ...customTalles,
+                                    [talle]: currentValue === 6 ? 0 : 0,
+                                  });
+                                }}
+                              >
+                                ↓
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Input
+                            type="number"
+                            min="0"
+                            value={customTalles[talle] || 0}
+                            onChange={(e) =>
+                              setCustomTalles({
+                                ...customTalles,
+                                [talle]: parseInt(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

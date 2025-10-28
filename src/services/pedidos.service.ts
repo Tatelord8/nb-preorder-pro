@@ -183,6 +183,22 @@ export class PedidosService {
         throw new Error(error.message);
       }
 
+      // Debug: Verificar estructura de datos
+      if (data && data.length > 0) {
+        console.log('🔍 Debug getAllWithDetails - Primer pedido:', {
+          id: data[0].id,
+          estado: data[0].estado,
+          itemsCount: data[0].items_pedido?.length || 0,
+          primerItem: data[0].items_pedido?.[0] ? {
+            id: data[0].items_pedido[0].id,
+            producto_id: data[0].items_pedido[0].producto_id,
+            cantidad: data[0].items_pedido[0].cantidad,
+            tieneTallesCantidades: !!data[0].items_pedido[0].talles_cantidades,
+            tallesKeys: data[0].items_pedido[0].talles_cantidades ? Object.keys(data[0].items_pedido[0].talles_cantidades) : 'N/A'
+          } : 'Sin items'
+        });
+      }
+
       return data as any as PedidoConDetalles[] || [];
     } catch (error) {
       console.error('Error inesperado al obtener pedidos con detalles:', error);

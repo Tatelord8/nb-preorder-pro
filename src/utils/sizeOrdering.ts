@@ -9,8 +9,8 @@
 export function sortSizesByOrder(sizes: string[], genero: string): string[] {
   // Definir el orden correcto para cada género
   const sizeOrders: Record<string, string[]> = {
-    // Mens: 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 13
-    'Mens': ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'],
+    // Mens: 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14, 15
+    'Mens': ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14', '15'],
     
     // Womens: 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10
     'Womens': ['6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10'],

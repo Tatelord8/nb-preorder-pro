@@ -83,6 +83,7 @@ export interface PedidoFinalizado {
     cantidad: number;
     precio_unitario: number;
     subtotal_usd: number;
+    tallesCantidades?: Record<string, number>;
     productos?: {
       sku: string;
       nombre: string;
@@ -905,20 +906,54 @@ export class ReportsService {
               }
             }
           } else {
-            const cantidadTotal = item.cantidad || 0;
-            const subtotal = precio * cantidadTotal;
-            datosExcel.push({
-              'SKU': sku,
-              'Rubro': rubro,
-              'Talla': 'Todas',
-              'Cantidad por talla': cantidadTotal,
-              'Precio por SKU': precio,
-              'Subtotal': subtotal,
-              'Vendedor': vendedor,
-              'Cliente': cliente,
-              'XFD': xfd,
-              'Fecha de Despacho': fechaDespacho
+            // Para pedidos finalizados, usar talles_cantidades si está disponible
+            console.log('🔍 Debug exportación - Item:', {
+              producto_id: item.producto_id,
+              cantidad: item.cantidad,
+              tallesCantidades: item.tallesCantidades,
+              tieneTalles: !!item.tallesCantidades,
+              keysTalles: item.tallesCantidades ? Object.keys(item.tallesCantidades) : 'N/A'
             });
+            
+            if (item.tallesCantidades && Object.keys(item.tallesCantidades).length > 0) {
+              console.log('✅ Usando tallesCantidades para exportación');
+              Object.entries(item.tallesCantidades).forEach(([talla, cantidad]) => {
+                if (Number(cantidad) > 0) {
+                  const cantidadNum = Number(cantidad);
+                  const subtotal = precio * cantidadNum;
+                  console.log(`📊 Agregando fila: Talla ${talla}, Cantidad ${cantidadNum}`);
+                  datosExcel.push({
+                    'SKU': sku,
+                    'Rubro': rubro,
+                    'Talla': talla,
+                    'Cantidad por talla': cantidadNum,
+                    'Precio por SKU': precio,
+                    'Subtotal': subtotal,
+                    'Vendedor': vendedor,
+                    'Cliente': cliente,
+                    'XFD': xfd,
+                    'Fecha de Despacho': fechaDespacho
+                  });
+                }
+              });
+            } else {
+              console.log('❌ Usando fallback - sin talles_cantidades');
+              // Fallback al comportamiento anterior si no hay talles_cantidades
+              const cantidadTotal = item.cantidad || 0;
+              const subtotal = precio * cantidadTotal;
+              datosExcel.push({
+                'SKU': sku,
+                'Rubro': rubro,
+                'Talla': 'Todas',
+                'Cantidad por talla': cantidadTotal,
+                'Precio por SKU': precio,
+                'Subtotal': subtotal,
+                'Vendedor': vendedor,
+                'Cliente': cliente,
+                'XFD': xfd,
+                'Fecha de Despacho': fechaDespacho
+              });
+            }
           }
         }
       }

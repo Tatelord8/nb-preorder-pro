@@ -240,7 +240,7 @@ const Cart = () => {
       "SKU",
       "Producto", 
       "Precio Unitario",
-      "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12",
+      "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14", "15",
       "S", "M", "L", "XL", "XXL", "XS",
       "Cantidad",
       "Subtotal"
@@ -267,11 +267,11 @@ const Cart = () => {
       if (producto?.rubro?.toLowerCase() === 'calzados') {
         // Tallas de calzados según género
         if (producto?.genero?.toLowerCase() === 'mens') {
-          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'];
+          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14', '15'];
         } else if (producto?.genero?.toLowerCase() === 'womens') {
           tallasCalzados = ['6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10'];
         } else {
-          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'];
+          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14', '15'];
         }
       } else if (producto?.rubro?.toLowerCase() === 'prendas') {
         // Tallas de prendas según género
