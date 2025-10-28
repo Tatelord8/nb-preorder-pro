@@ -48,7 +48,9 @@ import {
   Package,
   FileText,
   CheckCircle,
-  XCircle
+  XCircle,
+  Image as ImageIcon,
+  AlertCircle
 } from "lucide-react";
 
 interface Producto {
@@ -96,6 +98,26 @@ const Productos = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Image management states
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState(0);
+  const [imageUploadResults, setImageUploadResults] = useState<{
+    success: Array<{sku: string, nombre: string, url: string}>;
+    warnings: Array<{file: string, reason: string}>;
+    errors: Array<{file: string, error: string}>;
+  }>({
+    success: [],
+    warnings: [],
+    errors: []
+  });
+  const [imageStats, setImageStats] = useState({
+    total: 0,
+    withImage: 0,
+    withoutImage: 0
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  
   // Form states
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -122,6 +144,7 @@ const Productos = () => {
     loadProductos();
     loadMarcas();
     verifyDatabaseConnection();
+    loadImageStats();
   }, []);
 
   const verifyDatabaseConnection = async () => {
@@ -882,6 +905,265 @@ const Productos = () => {
     );
   };
 
+  // Image Management Functions
+  const loadImageStats = async () => {
+    try {
+      const { data: productos } = await supabase
+        .from('productos')
+        .select('id, imagen_url');
+      
+      if (productos) {
+        const withImage = productos.filter(p => p.imagen_url).length;
+        const withoutImage = productos.filter(p => !p.imagen_url).length;
+        
+        setImageStats({
+          total: productos.length,
+          withImage,
+          withoutImage
+        });
+      }
+    } catch (error) {
+      console.error("Error loading image stats:", error);
+    }
+  };
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    processImages(files);
+  };
+
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      processImages(files);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleImageDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const processImages = async (files: File[]) => {
+    setUploadingImages(true);
+    setImageUploadProgress(0);
+    setImageUploadResults({ success: [], warnings: [], errors: [] });
+    
+    const results = {
+      success: [] as Array<{sku: string, nombre: string, url: string}>,
+      warnings: [] as Array<{file: string, reason: string}>,
+      errors: [] as Array<{file: string, error: string}>
+    };
+    
+    // Validar archivos
+    const validFiles = files.filter(file => {
+      // Validar extensión
+      if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+        results.errors.push({
+          file: file.name,
+          error: 'Formato no soportado'
+        });
+        return false;
+      }
+      
+      // Validar tamaño (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        results.errors.push({
+          file: file.name,
+          error: 'Archivo muy grande (máx 5MB)'
+        });
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // Procesar en lotes de 10
+    const batchSize = 10;
+    for (let i = 0; i < validFiles.length; i += batchSize) {
+      const batch = validFiles.slice(i, i + batchSize);
+      
+      await Promise.all(
+        batch.map(file => uploadAndLinkImage(file, results))
+      );
+      
+      setImageUploadProgress(Math.round(((i + batch.length) / validFiles.length) * 100));
+    }
+    
+    setImageUploadResults(results);
+    setUploadingImages(false);
+    
+    // Actualizar estadísticas
+    await loadImageStats();
+    
+    // Recargar productos si hay cambios
+    if (results.success.length > 0) {
+      await loadProductos();
+      
+      toast({
+        title: "Imágenes vinculadas",
+        description: `${results.success.length} imágenes subidas y vinculadas exitosamente`,
+      });
+    }
+    
+    if (results.warnings.length > 0) {
+      toast({
+        title: "Advertencias",
+        description: `${results.warnings.length} imágenes no se pudieron vincular`,
+        variant: "default",
+      });
+    }
+    
+    if (results.errors.length > 0) {
+      toast({
+        title: "Errores",
+        description: `${results.errors.length} imágenes con errores`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const uploadAndLinkImage = async (file: File, results: any) => {
+    try {
+      // Extraer SKU del nombre del archivo
+      const sku = file.name.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+      
+      // Buscar producto por SKU
+      const { data: producto, error: productError } = await supabase
+        .from('productos')
+        .select('id, nombre')
+        .eq('sku', sku)
+        .single();
+      
+      if (productError || !producto) {
+        results.warnings.push({
+          file: file.name,
+          reason: `Producto con SKU "${sku}" no encontrado`
+        });
+        return;
+      }
+      
+      // Subir imagen al bucket
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('product-images')
+        .upload(file.name, file, {
+          cacheControl: '3600',
+          upsert: true // Sobrescribir si ya existe
+        });
+      
+      if (uploadError) {
+        results.errors.push({
+          file: file.name,
+          error: uploadError.message
+        });
+        return;
+      }
+      
+      // Construir URL pública
+      const { data: { publicUrl } } = supabase
+        .storage
+        .from('product-images')
+        .getPublicUrl(file.name);
+      
+      // Actualizar producto con la URL
+      const { error: updateError } = await supabase
+        .from('productos')
+        .update({ imagen_url: publicUrl })
+        .eq('id', producto.id);
+      
+      if (updateError) {
+        results.errors.push({
+          file: file.name,
+          error: `Error vinculando: ${updateError.message}`
+        });
+        return;
+      }
+      
+      results.success.push({
+        sku: sku,
+        nombre: producto.nombre,
+        url: publicUrl
+      });
+      
+    } catch (error: any) {
+      results.errors.push({
+        file: file.name,
+        error: error.message
+      });
+    }
+  };
+
+  const showProductsWithoutImages = async () => {
+    const { data } = await supabase
+      .from('productos')
+      .select('sku, nombre')
+      .is('imagen_url', null)
+      .order('sku');
+    
+    if (data && data.length > 0) {
+      // Crear CSV
+      const csvContent = [
+        'SKU,Nombre',
+        ...data.map(p => `${p.sku},${p.nombre}`)
+      ].join('\n');
+      
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `productos-sin-imagen-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Reporte descargado",
+        description: `${data.length} productos sin imagen exportados`,
+      });
+    } else {
+      toast({
+        title: "¡Perfecto!",
+        description: "Todos los productos tienen imagen asignada",
+      });
+    }
+  };
+
+  const downloadImageReport = () => {
+    const csvContent = [
+      'Tipo,SKU/Archivo,Nombre/Razón,Estado',
+      ...imageUploadResults.success.map(r => `Éxito,${r.sku},${r.nombre},Vinculado`),
+      ...imageUploadResults.warnings.map(r => `Advertencia,${r.file},${r.reason},No vinculado`),
+      ...imageUploadResults.errors.map(r => `Error,${r.file},${r.error},Fallido`)
+    ].join('\n');
+    
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-carga-imagenes-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Reporte descargado",
+      description: "Reporte de carga de imágenes exportado",
+    });
+  };
+
   const downloadTemplate = () => {
     // Crear contenido CSV con formato correcto
     const headers = [
@@ -1017,8 +1299,18 @@ const Productos = () => {
       <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="productos" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="productos">Productos</TabsTrigger>
-            <TabsTrigger value="carga-masiva">Carga Masiva</TabsTrigger>
+            <TabsTrigger value="productos">
+              <Package className="h-4 w-4 mr-2" />
+              Lista de Productos
+            </TabsTrigger>
+            <TabsTrigger value="carga-masiva">
+              <Upload className="h-4 w-4 mr-2" />
+              Carga Masiva
+            </TabsTrigger>
+            <TabsTrigger value="imagenes">
+              <ImageIcon className="h-4 w-4 mr-2" />
+              Imágenes
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="productos">
@@ -1278,6 +1570,169 @@ const Productos = () => {
                 </div>
               )}
             </Card>
+          </TabsContent>
+
+          <TabsContent value="imagenes">
+            <div className="space-y-6">
+              {/* Estadísticas de imágenes */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">📊 Estadísticas de Imágenes</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold">{imageStats.total}</div>
+                    <div className="text-sm text-muted-foreground">Total productos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600">{imageStats.withImage}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Con imagen ({imageStats.total > 0 ? Math.round((imageStats.withImage / imageStats.total) * 100) : 0}%)
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-orange-600">{imageStats.withoutImage}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Sin imagen ({imageStats.total > 0 ? Math.round((imageStats.withoutImage / imageStats.total) * 100) : 0}%)
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Área de carga de imágenes */}
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">📸 Gestión de Imágenes de Productos</h2>
+                <p className="text-muted-foreground mb-6">
+                  Arrastra y suelta imágenes para subirlas automáticamente al bucket y vincularlas con productos por SKU.
+                </p>
+
+                <div
+                  onDrop={handleImageDrop}
+                  onDragOver={handleImageDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  className={`
+                    border-2 border-dashed rounded-lg p-12 text-center
+                    transition-colors cursor-pointer
+                    ${isDragging ? 'border-primary bg-primary/10' : 'border-muted-foreground/25'}
+                    hover:border-primary hover:bg-primary/5
+                  `}
+                  onClick={() => imageFileInputRef.current?.click()}
+                >
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold mb-2">
+                    Arrastra imágenes aquí
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    o haz clic para seleccionar archivos
+                  </p>
+                  <div className="text-xs text-muted-foreground">
+                    <p>Formatos: JPG, PNG, WEBP</p>
+                    <p>Tamaño máximo: 5MB por imagen</p>
+                    <p className="font-semibold mt-2">Las imágenes deben nombrarse con el SKU del producto</p>
+                  </div>
+                </div>
+
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleImageFileSelect}
+                />
+
+                {/* Progress Bar */}
+                {uploadingImages && (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subiendo imágenes...</span>
+                      <span>{imageUploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${imageUploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Resultados */}
+                {(imageUploadResults.success.length > 0 || imageUploadResults.warnings.length > 0 || imageUploadResults.errors.length > 0) && (
+                  <div className="mt-6 space-y-4">
+                    {imageUploadResults.success.length > 0 && (
+                      <div className="border rounded-lg p-4 bg-green-50">
+                        <h4 className="font-semibold text-green-600 mb-2 flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4" />
+                          Imágenes vinculadas exitosamente ({imageUploadResults.success.length})
+                        </h4>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {imageUploadResults.success.map((item, i) => (
+                            <div key={i} className="text-sm text-muted-foreground">
+                              ✅ {item.sku} → {item.nombre}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {imageUploadResults.warnings.length > 0 && (
+                      <div className="border rounded-lg p-4 bg-orange-50">
+                        <h4 className="font-semibold text-orange-600 mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Advertencias ({imageUploadResults.warnings.length})
+                        </h4>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {imageUploadResults.warnings.map((item, i) => (
+                            <div key={i} className="text-sm text-muted-foreground">
+                              ⚠️ {item.file}: {item.reason}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {imageUploadResults.errors.length > 0 && (
+                      <div className="border rounded-lg p-4 bg-red-50">
+                        <h4 className="font-semibold text-red-600 mb-2 flex items-center gap-2">
+                          <XCircle className="h-4 w-4" />
+                          Errores ({imageUploadResults.errors.length})
+                        </h4>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {imageUploadResults.errors.map((item, i) => (
+                            <div key={i} className="text-sm text-muted-foreground">
+                              ❌ {item.file}: {item.error}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={downloadImageReport}
+                        className="flex-1"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Descargar Reporte
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                <div className="mt-6 flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={showProductsWithoutImages}
+                    disabled={imageStats.withoutImage === 0}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Ver productos sin imagen ({imageStats.withoutImage})
+                  </Button>
+                </div>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
