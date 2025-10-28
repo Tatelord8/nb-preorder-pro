@@ -119,22 +119,51 @@ const Catalog = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      // Obtener el total primero
+      const { count } = await supabase
         .from("productos")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los productos",
-          variant: "destructive",
-        });
+        .select("*", { count: 'exact', head: true });
+      
+      console.log(`🔍 Total productos en DB (Catalog): ${count}`);
+      
+      if (!count) {
+        setProductos([]);
+        setLoading(false);
         return;
+      }
+      
+      // Cargar en páginas de 1000 (límite de Supabase)
+      const pageSize = 1000;
+      const totalPages = Math.ceil(count / pageSize);
+      let allProductos: Producto[] = [];
+      
+      for (let page = 0; page < totalPages; page++) {
+        const start = page * pageSize;
+        const end = start + pageSize - 1;
+        
+        console.log(`🔄 Cargando página ${page + 1}/${totalPages} (${start}-${end})...`);
+        
+        const { data, error } = await supabase
+          .from("productos")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .range(start, end);
+        
+        if (error) {
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar los productos",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        allProductos = [...allProductos, ...(data || [])];
+        console.log(`✅ Cargados ${data?.length || 0} productos (Total acumulado: ${allProductos.length})`);
       }
 
       // Filtrar productos en el frontend
-      let filteredData = (data as Producto[]) || [];
+      let filteredData = allProductos;
       
       console.log("🔍 Total productos cargados:", filteredData.length);
       console.log("🔍 User tier actual:", userTier);
