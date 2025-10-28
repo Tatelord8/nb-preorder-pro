@@ -40,8 +40,8 @@ const LayoutTemporal = ({ children }: { children: React.ReactNode }) => {
               <span className="text-primary-foreground font-bold text-sm">GPO</span>
             </div>
             <div>
-              <h2 className="font-semibold">Gestor de Preventas Optima</h2>
-              <p className="text-xs text-muted-foreground">Guata Pora S.A</p>
+              <h2 className="font-semibold">Gestor de Preventas New Balance</h2>
+              <p className="text-xs text-muted-foreground">Optima S.A</p>
             </div>
           </div>
         </SidebarHeader>
