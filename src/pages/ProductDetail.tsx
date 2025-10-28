@@ -504,7 +504,7 @@ const ProductDetail = () => {
                       <Label>Vista previa de cantidades</Label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
                         {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
-                          <div key={talla} className="flex justify-between text-sm">
+                          <div key={talla} className="flex items-center gap-2 text-sm">
                             <span className="font-medium">{talla}</span>
                             <span className="text-gray-600">{cantidad}</span>
                           </div>

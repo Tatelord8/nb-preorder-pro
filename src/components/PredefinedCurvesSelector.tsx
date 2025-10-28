@@ -159,7 +159,7 @@ const PredefinedCurvesSelector: React.FC<PredefinedCurvesSelectorProps> = ({
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {Object.entries(appliedCurve).map(([talla, cantidad]) => (
-                <div key={talla} className="flex items-center justify-between p-2 border rounded">
+                <div key={talla} className="flex items-center gap-2 p-2 border rounded">
                   <span className="font-medium">{talla}</span>
                   <Badge variant="secondary">{cantidad}</Badge>
                 </div>
