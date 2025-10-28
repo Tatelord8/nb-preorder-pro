@@ -46,7 +46,7 @@ const ProductDetail = () => {
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
   const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
-  const { addItem, removeItem, isProductInCart: checkIsInCart } = useSupabaseCart();
+  const { addItem, removeItem, isProductInCart: checkIsInCart, items: cartItems, loading: cartLoading } = useSupabaseCart();
   const [isInCart, setIsInCart] = useState(false);
   const [validSizes, setValidSizes] = useState<string[]>([]);
   
@@ -70,6 +70,19 @@ const ProductDetail = () => {
       checkIfInCart();
     }
   }, [id]);
+
+  // Verificar si el producto está en el carrito cuando los items del carrito cambien
+  useEffect(() => {
+    if (id && !cartLoading) {
+      console.log('🔄 Carrito actualizado, verificando producto:', id);
+      console.log('🛒 Items en carrito:', cartItems.length);
+      console.log('🛒 IDs de productos:', cartItems.map(item => item.productoId));
+      
+      const isInCart = checkIsInCart(id);
+      setIsInCart(isInCart);
+      console.log('✅ Producto en carrito:', isInCart);
+    }
+  }, [cartItems, cartLoading, id, checkIsInCart]);
 
   const loadUserTier = async () => {
     try {
@@ -139,10 +152,13 @@ const ProductDetail = () => {
     if (!id) return;
     
     try {
+      console.log('🔍 Debug checkIfInCart - ID del producto:', id);
       const isInCart = checkIsInCart(id);
       setIsInCart(isInCart);
+      console.log('🛒 Verificando carrito - Producto:', id, 'En carrito:', isInCart);
+      
     } catch (error) {
-      console.error('Error checking cart:', error);
+      console.error('❌ Error checking cart:', error);
       setIsInCart(false);
     }
   };
@@ -263,17 +279,27 @@ const ProductDetail = () => {
     if (!id) return;
 
     try {
+      console.log('🗑️ Eliminando producto del carrito:', id);
+      
+      // Determinar los parámetros para eliminar (deben coincidir con los usados al agregar)
+      const curvaId = curvaType === "predefined" ? `predefined-${selectedPredefinedCurve}` : undefined;
+      const tipo = curvaType;
+      const opcion = curvaType === "predefined" ? selectedPredefinedCurve : undefined;
+      
+      console.log('🔍 Parámetros de eliminación:', { curvaId, tipo, opcion });
+      
       // Usar SupabaseCartService para eliminar del carrito
-      await removeItem(id);
+      await removeItem(id, curvaId, tipo, opcion);
 
       setIsInCart(false);
+      console.log('✅ Producto eliminado exitosamente');
 
       toast({
         title: "Eliminado del pedido",
         description: "El producto fue eliminado exitosamente",
       });
     } catch (error) {
-      console.error('Error removing from cart:', error);
+      console.error('❌ Error removing from cart:', error);
       toast({
         title: "Error",
         description: "No se pudo eliminar el producto del pedido",
@@ -569,15 +595,28 @@ const ProductDetail = () => {
             </div>
 
             {isInCart ? (
-              <Button 
-                onClick={handleRemoveFromCart} 
-                variant="destructive" 
-                className="w-full" 
-                size="lg"
-              >
-                <Trash2 className="h-5 w-5 mr-2" />
-                Eliminar del pedido
-              </Button>
+              <div className="space-y-3">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-800">
+                      Producto agregado al pedido
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Puedes eliminar este producto del pedido usando el botón de abajo
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleRemoveFromCart} 
+                  variant="destructive" 
+                  className="w-full" 
+                  size="lg"
+                >
+                  <Trash2 className="h-5 w-5 mr-2" />
+                  Eliminar del pedido
+                </Button>
+              </div>
             ) : (
               <Button onClick={handleAddToCart} className="w-full" size="lg">
                 Agregar a pedido
