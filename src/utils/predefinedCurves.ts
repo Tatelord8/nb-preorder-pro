@@ -105,40 +105,41 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       'XS': 1, 'S': 2, 'M': 3, 'L': 3, 'XL': 3, 'XXL': 3
     }
   },
-  // UNISEX CALZADOS - Opción 1 (Total: 29)
+  // UNISEX CALZADOS - Opción 1 (Total: 17)
+  // Rango de tallas: 7-15
   {
     genero: 'Unisex',
     rubro: 'Calzados',
     opcion: 1,
-    total: 29,
+    total: 17,
     tallas: {
-      '4': 1, '4.5': 1, '5': 2, '5.5': 2, '6': 2, '6.5': 2,
-      '7': 2, '7.5': 2, '8': 2, '8.5': 2, '9': 2, '9.5': 2,
-      '10': 2, '10.5': 2, '11': 1, '11.5': 1, '12': 1
+      '7': 1, '7.5': 1, '8': 2, '8.5': 2, '9': 2, '9.5': 2,
+      '10': 2, '10.5': 2, '11': 1, '11.5': 1, '12': 1, '13': 0, '14': 0, '15': 0
     }
   },
-  // UNISEX CALZADOS - Opción 2 (Total: 27)
+  // UNISEX CALZADOS - Opción 2 (Total: 11)
+  // Rango de tallas: 6-10
   {
     genero: 'Unisex',
     rubro: 'Calzados',
     opcion: 2,
+    total: 11,
+    tallas: {
+      '6': 1, '6.5': 1, '7': 2, '7.5': 2, '8': 2, '8.5': 2,
+      '9': 2, '9.5': 1, '10': 1
+    }
+  },
+  // UNISEX CALZADOS - Opción 3 (Total: 27)
+  // Rango de tallas: 4-12
+  {
+    genero: 'Unisex',
+    rubro: 'Calzados',
+    opcion: 3,
     total: 27,
     tallas: {
       '4': 1, '4.5': 1, '5': 1, '5.5': 2, '6': 2, '6.5': 2,
       '7': 2, '7.5': 2, '8': 2, '8.5': 2, '9': 2, '9.5': 2,
       '10': 2, '10.5': 1, '11': 1, '11.5': 1, '12': 1
-    }
-  },
-  // UNISEX CALZADOS - Opción 3 (Total: 28)
-  {
-    genero: 'Unisex',
-    rubro: 'Calzados',
-    opcion: 3,
-    total: 28,
-    tallas: {
-      '4': 1, '4.5': 1, '5': 1, '5.5': 2, '6': 2, '6.5': 2,
-      '7': 2, '7.5': 2, '8': 2, '8.5': 2, '9': 2, '9.5': 2,
-      '10': 2, '10.5': 2, '11': 1, '11.5': 1, '12': 1
     }
   },
   // UNISEX PRENDAS - Opción 1 (Total: 18)
