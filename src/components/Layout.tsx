@@ -67,55 +67,33 @@ const Layout = ({ children }: LayoutProps) => {
       return;
     }
 
-    console.log("🔍 Debug Layout - Session user ID:", session.user.id);
-    console.log("🔍 Debug Layout - Session user email:", session.user.email);
-
     // Get user role and name - consulta simplificada sin JOIN
-    const { data: userRole, error } = await supabase
+    const { data: userRole } = await supabase
       .from("user_roles")
       .select("role, nombre, cliente_id")
       .eq("user_id", session.user.id)
       .single();
 
-    console.log("🔍 Debug Layout - userRole data:", userRole);
-    console.log("🔍 Debug Layout - userRole error:", error);
-
-    if (error) {
-      console.log("🔍 Debug Layout - Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-    }
-
     if (userRole) {
-      console.log("🔍 Debug Layout - Setting userRole to:", userRole.role);
       setUserRole(userRole.role);
       setUserName(userRole.nombre || "Usuario");
-      
+
       // Si hay cliente_id, obtener nombre del cliente por separado
       if (userRole.cliente_id) {
         try {
-          const { data: cliente, error: clienteError } = await supabase
+          const { data: cliente } = await supabase
             .from("clientes")
             .select("nombre")
             .eq("id", userRole.cliente_id)
             .single();
-          
-          if (clienteError) {
-            console.log("🔍 Debug Layout - Error obteniendo cliente:", clienteError);
-          } else if (cliente) {
+
+          if (cliente) {
             setClientName(cliente.nombre);
-            console.log("🔍 Debug Layout - Client name set to:", cliente.nombre);
           }
         } catch (err) {
-          console.log("🔍 Debug Layout - Exception obteniendo cliente:", err);
+          // Error silencioso
         }
       }
-    } else {
-      console.log("🔍 Debug Layout - No userRole found");
-      console.log("🔍 Debug Layout - This means the user is not in user_roles table");
     }
   };
 
@@ -124,12 +102,8 @@ const Layout = ({ children }: LayoutProps) => {
     navigate("/login");
   };
 
-  const getCartCount = () => {
-    return totals.totalItems || 0;
-  };
-
-  // Debug log para verificar el userRole en el render
-  console.log("🔍 Debug Layout - Current userRole:", userRole);
+  // Obtener el count del carrito directamente desde totals
+  const cartCount = totals.totalItems || 0;
 
   return (
     <div className="flex h-screen w-full">
@@ -167,18 +141,7 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
 
                 {/* Productos - Solo Superadmin and Admin */}
-                {(() => {
-                  const shouldShow = userRole === "superadmin" || userRole === "admin";
-                  console.log("🔍 Debug Layout - Should show Productos:", shouldShow, "userRole:", userRole);
-                  
-                  // NO mostrar Productos para clientes o usuarios sin rol definido
-                  if (!userRole) {
-                    console.log("🔍 Debug Layout - userRole vacío, NO mostrando Productos");
-                    return false;
-                  }
-                  
-                  return shouldShow;
-                })() && (
+                {(userRole === "superadmin" || userRole === "admin") && (
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => navigate("/productos")}
@@ -276,9 +239,17 @@ const Layout = ({ children }: LayoutProps) => {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => navigate("/cart")}>
+              <SidebarMenuButton onClick={() => navigate("/cart")} className="relative">
                 <ShoppingCart className="h-4 w-4" />
-                <span>Mi Pedido ({getCartCount() as number})</span>
+                <span>Mi Pedido</span>
+                {cartCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="ml-auto h-5 min-w-[20px] px-1.5 text-xs"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -325,7 +296,15 @@ const Layout = ({ children }: LayoutProps) => {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/cart")}>
                       <ShoppingCart className="h-4 w-4 mr-2" />
-                      <span>Mi Pedido ({getCartCount() as number})</span>
+                      <span>Mi Pedido</span>
+                      {cartCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="ml-auto h-5 min-w-[20px] px-1.5 text-xs"
+                        >
+                          {cartCount}
+                        </Badge>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Settings className="h-4 w-4 mr-2" />

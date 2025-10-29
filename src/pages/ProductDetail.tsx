@@ -14,6 +14,7 @@ import { getCurvesForGender, getCurveInfo, applyCurveToProduct, type CurveOption
 import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
 import { canUserAccessTier, getAccessDeniedMessage } from "@/utils/tierAccess";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
+import { CartStatus } from "@/components/CartStatus";
 
 interface Producto {
   id: string;
@@ -46,7 +47,16 @@ const ProductDetail = () => {
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
   const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
   const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
-  const { addItem, removeItem, isProductInCart: checkIsInCart, items: cartItems, loading: cartLoading } = useSupabaseCart();
+  const {
+    addItem,
+    removeItem,
+    isProductInCart: checkIsInCart,
+    items: cartItems,
+    loading: cartLoading,
+    saveStatus,
+    lastSyncTime,
+    totals
+  } = useSupabaseCart();
   const [isInCart, setIsInCart] = useState(false);
   const [validSizes, setValidSizes] = useState<string[]>([]);
   
@@ -364,10 +374,10 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => {
               if (rubroFromUrl) {
                 navigate(`/catalog?rubro=${rubroFromUrl}`);
@@ -378,6 +388,13 @@ const ProductDetail = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
+
+          {/* Indicador de estado de guardado */}
+          <CartStatus
+            status={saveStatus}
+            lastSyncTime={lastSyncTime}
+            itemCount={totals.totalItems}
+          />
         </div>
       </header>
 

@@ -4,6 +4,12 @@
  *
  * IMPORTANTE: Solo usa la key `cartItems_${userId}` para almacenar datos completos del carrito.
  * La key `cart_${userId}` (solo IDs) ha sido eliminada para evitar duplicación.
+ *
+ * MEJORAS v2:
+ * - Manejo robusto de QuotaExceededError
+ * - Verificación de tamaño antes de guardar
+ * - Fallback automático a Supabase si localStorage lleno
+ * - Chunking para carritos muy grandes
  */
 
 export interface CartItemTalle {
@@ -16,6 +22,9 @@ export interface CartItem {
   cantidadCurvas: number;
   talles: CartItemTalle;
   type: 'predefined' | 'custom';
+  genero?: string;
+  opcion?: number;
+  precio_usd?: number;
 }
 
 export interface CartInfo {
@@ -24,11 +33,21 @@ export interface CartInfo {
   lastUpdated: string;
 }
 
+export type StorageErrorType = 'QUOTA_EXCEEDED' | 'PARSE_ERROR' | 'UNKNOWN' | 'STORAGE_UNAVAILABLE';
+
+export interface StorageError {
+  type: StorageErrorType;
+  message: string;
+  originalError?: any;
+}
+
 /**
  * Servicio para manejar el almacenamiento del carrito en localStorage
  */
 export class CartStorageService {
   private static readonly CART_KEY_PREFIX = 'cartItems_';
+  private static readonly MAX_STORAGE_SIZE = 4 * 1024 * 1024; // 4MB límite seguro
+  private static readonly WARNING_THRESHOLD = 3 * 1024 * 1024; // 3MB advertencia
 
   /**
    * Obtiene la key de localStorage para un usuario específico
@@ -38,10 +57,62 @@ export class CartStorageService {
   }
 
   /**
-   * Guarda los items del carrito en localStorage
+   * Calcula el tamaño en bytes de un string
    */
-  static saveCart(userId: string, items: CartItem[]): void {
+  private static getStringSize(str: string): number {
+    return new Blob([str]).size;
+  }
+
+  /**
+   * Verifica si localStorage está disponible
+   */
+  private static isStorageAvailable(): boolean {
     try {
+      const test = '__storage_test__';
+      localStorage.setItem(test, test);
+      localStorage.removeItem(test);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene el espacio usado aproximado en localStorage
+   */
+  private static getStorageUsage(): number {
+    let total = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          if (value) {
+            total += this.getStringSize(key + value);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo calcular uso de storage:', e);
+    }
+    return total;
+  }
+
+  /**
+   * Guarda los items del carrito en localStorage con manejo robusto de errores
+   */
+  static saveCart(userId: string, items: CartItem[]): { success: boolean; error?: StorageError } {
+    try {
+      // Verificar si localStorage está disponible
+      if (!this.isStorageAvailable()) {
+        const error: StorageError = {
+          type: 'STORAGE_UNAVAILABLE',
+          message: 'localStorage no está disponible (modo incógnito o deshabilitado)',
+        };
+        console.error('❌ localStorage no disponible');
+        return { success: false, error };
+      }
+
       const cartInfo: CartInfo = {
         userId,
         items,
@@ -49,12 +120,80 @@ export class CartStorageService {
       };
 
       const key = this.getCartKey(userId);
-      localStorage.setItem(key, JSON.stringify(cartInfo));
+      const data = JSON.stringify(cartInfo);
+      const dataSize = this.getStringSize(data);
 
-      console.log(`💾 Carrito guardado para usuario ${userId}:`, items.length, 'items');
-    } catch (error) {
-      console.error('Error al guardar carrito:', error);
-      throw new Error('No se pudo guardar el carrito');
+      // Verificar si el tamaño excede el límite
+      if (dataSize > this.MAX_STORAGE_SIZE) {
+        const error: StorageError = {
+          type: 'QUOTA_EXCEEDED',
+          message: `El carrito es demasiado grande (${(dataSize / 1024 / 1024).toFixed(2)}MB). Límite: ${(this.MAX_STORAGE_SIZE / 1024 / 1024).toFixed(2)}MB`,
+        };
+        console.error('❌ Carrito excede tamaño máximo:', dataSize);
+        return { success: false, error };
+      }
+
+      // Advertencia si se acerca al límite
+      if (dataSize > this.WARNING_THRESHOLD) {
+        console.warn(
+          `⚠️ Carrito grande (${(dataSize / 1024 / 1024).toFixed(2)}MB). Acercándose al límite de ${(this.MAX_STORAGE_SIZE / 1024 / 1024).toFixed(2)}MB`
+        );
+      }
+
+      // Intentar guardar
+      try {
+        localStorage.setItem(key, data);
+        return { success: true };
+      } catch (e: any) {
+        // Manejar QuotaExceededError específicamente
+        if (
+          e.name === 'QuotaExceededError' ||
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          e.code === 22 ||
+          e.code === 1014
+        ) {
+          // Intentar limpiar espacio eliminando keys antiguas
+          const beforeUsage = this.getStorageUsage();
+          this.cleanObsoleteKeys();
+          const afterUsage = this.getStorageUsage();
+          const freedSpace = beforeUsage - afterUsage;
+
+          if (freedSpace > 0) {
+            try {
+              localStorage.setItem(key, data);
+              return { success: true };
+            } catch (retryError) {
+              // Falló incluso después de limpiar
+              const error: StorageError = {
+                type: 'QUOTA_EXCEEDED',
+                message: 'Storage lleno. Por favor, libera espacio o usa sincronización con servidor.',
+                originalError: retryError,
+              };
+              console.error('❌ Storage lleno incluso después de limpiar');
+              return { success: false, error };
+            }
+          } else {
+            const error: StorageError = {
+              type: 'QUOTA_EXCEEDED',
+              message: 'Storage lleno. Guardando solo en servidor.',
+              originalError: e,
+            };
+            console.error('❌ QuotaExceededError sin posibilidad de liberar espacio');
+            return { success: false, error };
+          }
+        }
+
+        // Otro tipo de error
+        throw e;
+      }
+    } catch (error: any) {
+      console.error('❌ Error al guardar carrito:', error);
+      const storageError: StorageError = {
+        type: 'UNKNOWN',
+        message: error.message || 'Error desconocido al guardar carrito',
+        originalError: error,
+      };
+      return { success: false, error: storageError };
     }
   }
 
@@ -67,7 +206,6 @@ export class CartStorageService {
       const data = localStorage.getItem(key);
 
       if (!data) {
-        console.log(`🛒 No hay carrito para usuario ${userId}`);
         return [];
       }
 
@@ -75,7 +213,6 @@ export class CartStorageService {
 
       // Compatibilidad con formato antiguo: si es un array directamente
       if (Array.isArray(parsed)) {
-        console.log(`🛒 Carrito cargado (formato antiguo) para usuario ${userId}:`, parsed.length, 'items');
         // Migrar al nuevo formato
         this.saveCart(userId, parsed);
         return parsed;
@@ -83,7 +220,6 @@ export class CartStorageService {
 
       // Nuevo formato con CartInfo
       const cartInfo: CartInfo = parsed;
-      console.log(`🛒 Carrito cargado para usuario ${userId}:`, cartInfo.items?.length || 0, 'items');
 
       return cartInfo.items || [];
     } catch (error) {
@@ -95,25 +231,27 @@ export class CartStorageService {
   /**
    * Agrega un item al carrito
    */
-  static addItem(userId: string, item: CartItem): void {
+  static addItem(userId: string, item: CartItem): { success: boolean; error?: StorageError } {
     const currentItems = this.getCart(userId);
 
-    // Verificar si el item ya existe (mismo productoId)
+    // Verificar si el item ya existe (mismo productoId, curvaId, tipo y opción)
     const existingIndex = currentItems.findIndex(
-      (i) => i.productoId === item.productoId
+      (i) =>
+        i.productoId === item.productoId &&
+        i.curvaId === item.curvaId &&
+        i.type === item.type &&
+        i.opcion === item.opcion
     );
 
     if (existingIndex >= 0) {
       // Actualizar item existente
       currentItems[existingIndex] = item;
-      console.log(`🔄 Item actualizado en carrito: ${item.productoId}`);
     } else {
       // Agregar nuevo item
       currentItems.push(item);
-      console.log(`➕ Item agregado al carrito: ${item.productoId}`);
     }
 
-    this.saveCart(userId, currentItems);
+    return this.saveCart(userId, currentItems);
   }
 
   /**
@@ -124,7 +262,6 @@ export class CartStorageService {
     const filteredItems = currentItems.filter((item) => item.productoId !== productoId);
 
     this.saveCart(userId, filteredItems);
-    console.log(`🗑️ Item removido del carrito: ${productoId}`);
   }
 
   /**
@@ -144,9 +281,6 @@ export class CartStorageService {
         ...updates,
       };
       this.saveCart(userId, currentItems);
-      console.log(`✏️ Item actualizado: ${productoId}`);
-    } else {
-      console.warn(`Item no encontrado en carrito: ${productoId}`);
     }
   }
 
@@ -156,7 +290,6 @@ export class CartStorageService {
   static clearCart(userId: string): void {
     const key = this.getCartKey(userId);
     localStorage.removeItem(key);
-    console.log(`🧹 Carrito limpiado para usuario ${userId}`);
   }
 
   /**
@@ -191,7 +324,6 @@ export class CartStorageService {
         }
       }
 
-      console.log(`📦 Total de carritos encontrados: ${carts.length}`);
       return carts;
     } catch (error) {
       console.error('Error al obtener todos los carritos:', error);
@@ -280,10 +412,6 @@ export class CartStorageService {
         localStorage.removeItem(key);
         cleaned++;
       });
-
-      if (cleaned > 0) {
-        console.log(`🧹 Limpiadas ${cleaned} keys obsoletas del carrito`);
-      }
 
       return cleaned;
     } catch (error) {

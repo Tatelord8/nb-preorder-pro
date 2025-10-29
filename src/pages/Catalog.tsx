@@ -77,11 +77,8 @@ const Catalog = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.log("🔍 No hay sesión activa");
         return null;
       }
-
-      console.log("🔍 Usuario ID:", session.user.id);
 
       // Consultar tier desde user_roles y tiers
       try {
@@ -92,21 +89,15 @@ const Catalog = () => {
           .eq('user_id', session.user.id)
           .maybeSingle();
 
-        console.log("🔍 user_roles tier data:", userRoleData);
-        console.log("🔍 user_roles error:", userRoleError);
-        console.log("🔍 user_roles complete data:", JSON.stringify(userRoleData));
-
         if (userRoleData && userRoleData.tier !== null) {
           const tier = userRoleData.tier;
-          console.log("🔍 Tier obtenido:", tier);
           setUserTier(tier);
           return tier;
         }
       } catch (error) {
-        console.error("🔍 Error obteniendo tier:", error);
+        console.error("Error obteniendo tier:", error);
       }
 
-      console.log("🔍 No se pudo obtener el tier del usuario");
       return null;
     } catch (error) {
       console.error("Error loading user tier:", error);

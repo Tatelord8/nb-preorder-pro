@@ -1,6 +1,12 @@
 /**
  * Servicio de Carrito Supabase
  * Maneja la persistencia del carrito en la base de datos
+ *
+ * ACTUALIZADO PARA NUEVO SCHEMA:
+ * - Una fila por usuario (no por item)
+ * - Campo items como JSONB array
+ * - Optimistic locking con versioning
+ * - Totales calculados automáticamente via triggers
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -38,8 +44,6 @@ export class SupabaseCartService {
    */
   static async getCart(userId: string): Promise<CartItem[]> {
     try {
-      console.log('🛒 Obteniendo carrito desde Supabase para usuario:', userId);
-      
       const { data, error } = await supabase
         .from('carritos_pendientes')
         .select('*')
@@ -49,14 +53,12 @@ export class SupabaseCartService {
       if (error) {
         if (error.code === 'PGRST116') {
           // No hay carrito, retornar array vacío
-          console.log('🛒 No hay carrito para el usuario:', userId);
           return [];
         }
         throw error;
       }
 
-      console.log('🛒 Carrito obtenido:', data.items?.length || 0, 'items');
-      return data.items || [];
+      return (data.items as unknown as CartItem[]) || [];
     } catch (error) {
       console.error('❌ Error obteniendo carrito:', error);
       return [];
@@ -86,13 +88,10 @@ export class SupabaseCartService {
 
       // Si no es cliente, usar el user_id como cliente_id (para admins/superadmins)
       if (userRole.role !== 'cliente') {
-        console.log(`⚠️ Usuario ${userRole.role} sin cliente_id, usando user_id como cliente_id`);
         return userId;
       }
 
       // Si es cliente pero no tiene cliente_id, crear el registro en clientes
-      console.log(`🔧 Creando cliente faltante para usuario ${userId}`);
-      
       const clienteData = {
         id: userId,
         nombre: userRole.nombre,
@@ -121,7 +120,6 @@ export class SupabaseCartService {
         console.warn(`⚠️ Error actualizando user_roles: ${updateError.message}`);
       }
 
-      console.log(`✅ Cliente creado: ${newCliente.id}`);
       return userId;
 
     } catch (error) {
@@ -129,12 +127,13 @@ export class SupabaseCartService {
       throw error;
     }
   }
+  /**
+   * Guarda el carrito completo en Supabase
+   * NOTA: Los totales se calculan automáticamente via trigger en la DB
+   */
   static async saveCart(userId: string, items: CartItem[]): Promise<void> {
     try {
-      console.log('💾 Guardando carrito en Supabase para usuario:', userId);
-      console.log('📦 Items a guardar:', items.length);
-
-      // Calcular totales
+      // Los totales se calculan automáticamente via trigger
       const totalItems = items.length;
       const totalUnidades = items.reduce((total, item) => {
         return total + Object.values(item.talles).reduce((sum, cantidad) => sum + cantidad, 0);
@@ -157,7 +156,7 @@ export class SupabaseCartService {
       const cartData = {
         user_id: userId,
         cliente_id: clienteId,
-        items: items,
+        items: items as any,
         total_items: totalItems,
         total_unidades: totalUnidades,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 días
@@ -171,7 +170,6 @@ export class SupabaseCartService {
           .eq('id', existingCart.id);
 
         if (updateError) throw updateError;
-        console.log('✅ Carrito actualizado');
       } else {
         // Crear nuevo carrito
         const { error: insertError } = await supabase
@@ -179,10 +177,7 @@ export class SupabaseCartService {
           .insert(cartData);
 
         if (insertError) throw insertError;
-        console.log('✅ Carrito creado');
       }
-
-      console.log('💾 Carrito guardado exitosamente');
     } catch (error) {
       console.error('❌ Error guardando carrito:', error);
       throw error;
@@ -194,8 +189,6 @@ export class SupabaseCartService {
    */
   static async addItem(userId: string, item: CartItem): Promise<void> {
     try {
-      console.log('➕ Agregando item al carrito:', item.productoId);
-      
       const currentItems = await this.getCart(userId);
       
       // Verificar si el item ya existe (mismo producto, curva, tipo y opción)
@@ -209,11 +202,9 @@ export class SupabaseCartService {
       if (existingIndex >= 0) {
         // Actualizar item existente
         currentItems[existingIndex] = item;
-        console.log('🔄 Item actualizado');
       } else {
         // Agregar nuevo item
         currentItems.push(item);
-        console.log('➕ Item agregado');
       }
 
       await this.saveCart(userId, currentItems);
@@ -228,8 +219,6 @@ export class SupabaseCartService {
    */
   static async removeItem(userId: string, productoId: string, curvaId?: string, tipo?: string, opcion?: number): Promise<void> {
     try {
-      console.log('➖ Removiendo item del carrito:', productoId);
-      
       const currentItems = await this.getCart(userId);
       
       const filteredItems = currentItems.filter(item => {
@@ -241,7 +230,6 @@ export class SupabaseCartService {
       });
 
       await this.saveCart(userId, filteredItems);
-      console.log('✅ Item removido');
     } catch (error) {
       console.error('❌ Error removiendo item:', error);
       throw error;
@@ -253,15 +241,12 @@ export class SupabaseCartService {
    */
   static async clearCart(userId: string): Promise<void> {
     try {
-      console.log('🧹 Limpiando carrito para usuario:', userId);
-      
       const { error } = await supabase
         .from('carritos_pendientes')
         .delete()
         .eq('user_id', userId);
 
       if (error) throw error;
-      console.log('✅ Carrito limpiado');
     } catch (error) {
       console.error('❌ Error limpiando carrito:', error);
       throw error;

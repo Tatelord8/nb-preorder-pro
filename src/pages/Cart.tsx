@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Trash2, RefreshCw, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
+import { CartStatus } from "@/components/CartStatus";
 
 interface CartItem {
   productoId: string;
@@ -34,10 +35,21 @@ interface ProductoDetalle {
 
 const Cart = () => {
   const navigate = useNavigate();
-  const { items: cartItems, loading: cartLoading, clearCart, removeItem } = useSupabaseCart();
+  const {
+    items: cartItems,
+    loading: cartLoading,
+    clearCart,
+    removeItem,
+    saveStatus,
+    lastSyncTime,
+    totals,
+    forceSync,
+    recoverFromBackup
+  } = useSupabaseCart();
   const [productos, setProductos] = useState<Record<string, ProductoDetalle>>({});
   const [clienteInfo, setClienteInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -341,19 +353,73 @@ const Cart = () => {
     );
   }
 
+  // Handler para recuperar desde snapshot
+  const handleRecoverFromBackup = async () => {
+    try {
+      setRecovering(true);
+      await recoverFromBackup();
+      toast({
+        title: "Carrito recuperado",
+        description: "Se recuperaron los items desde el último respaldo",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No hay respaldos disponibles para recuperar",
+        variant: "destructive",
+      });
+    } finally {
+      setRecovering(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-6 border-b">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/catalog")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Catálogo
-          </Button>
-          <h1 className="text-3xl font-bold">Mi Carrito</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/catalog")}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver al Catálogo
+            </Button>
+            <h1 className="text-3xl font-bold">Mi Carrito</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Botón para forzar sincronización */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={forceSync}
+              disabled={saveStatus === 'syncing'}
+              title="Sincronizar ahora"
+            >
+              <RefreshCw className={`h-4 w-4 ${saveStatus === 'syncing' ? 'animate-spin' : ''}`} />
+            </Button>
+
+            {/* Botón para recuperar desde backup */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRecoverFromBackup}
+              disabled={recovering}
+              title="Recuperar desde último respaldo"
+            >
+              <History className="h-4 w-4 mr-2" />
+              {recovering ? 'Recuperando...' : 'Recuperar'}
+            </Button>
+
+            {/* Indicador de estado */}
+            <CartStatus
+              status={saveStatus}
+              lastSyncTime={lastSyncTime}
+              itemCount={totals.totalItems}
+            />
+          </div>
         </div>
       </div>
 
