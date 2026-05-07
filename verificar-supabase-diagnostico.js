@@ -119,3 +119,7 @@ console.log("\n💡 Ejecuta: verificarSupabaseYDiagnosticar()");
 
 
 
+
+
+
+

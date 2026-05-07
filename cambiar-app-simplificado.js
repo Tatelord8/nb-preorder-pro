@@ -65,3 +65,7 @@ console.log("\n💡 Ejecuta: cambiarAppSimplificado()");
 
 
 
+
+
+
+

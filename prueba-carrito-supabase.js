@@ -207,3 +207,7 @@ console.log("\n💡 Ejecuta: probarCarritoSupabase()");
 
 
 
+
+
+
+

@@ -43,6 +43,17 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       '10': 2, '10.5': 2, '11': 1, '11.5': 1, '12': 1, '13': 0, '14': 0, '15': 0
     }
   },
+  // MENS CALZADOS - Opción 3 (Total: 20)
+  {
+    genero: 'Mens',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 20,
+    tallas: {
+      '7': 1, '7.5': 1, '8': 2, '8.5': 3, '9': 3, '9.5': 3,
+      '10': 3, '10.5': 2, '11': 1, '11.5': 1, '12': 0, '13': 0, '14': 0, '15': 0
+    }
+  },
   // MENS PRENDAS - Opción 1 (Total: 15)
   {
     genero: 'Mens',
@@ -83,6 +94,17 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
     tallas: {
       '6': 1, '6.5': 1, '7': 2, '7.5': 2, '8': 2, '8.5': 2,
       '9': 2, '9.5': 1, '10': 1
+    }
+  },
+  // WOMENS CALZADOS - Opción 3 (Total: 18)
+  {
+    genero: 'Womens',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 18,
+    tallas: {
+      '6': 1, '6.5': 1, '7': 2, '7.5': 2, '8': 3, '8.5': 3,
+      '9': 3, '9.5': 2, '10': 1
     }
   },
   // WOMENS PRENDAS - Opción 1 (Total: 18)
@@ -173,6 +195,17 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       '10.5': 1, '11': 1, '11.5': 1, '12': 1, '12.5': 1, '13': 1, '13.5': 1
     }
   },
+  // PRESCHOOL CALZADOS - Opción 3 (Total: 21)
+  {
+    genero: 'Preschool',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 21,
+    tallas: {
+      '1': 1, '1.5': 1, '2': 1, '2.5': 1, '3': 1,
+      '10.5': 3, '11': 3, '11.5': 3, '12': 3, '12.5': 2, '13': 2, '13.5': 2
+    }
+  },
   // INFANT CALZADOS - Opción 1 (Total: 10)
   {
     genero: 'Infant',
@@ -191,6 +224,16 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
     total: 12,
     tallas: {
       '5': 1, '6': 1, '7': 2, '8': 2, '9': 3, '10': 3
+    }
+  },
+  // INFANT CALZADOS - Opción 3 (Total: 14)
+  {
+    genero: 'Infant',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 14,
+    tallas: {
+      '5': 1, '6': 2, '7': 2, '8': 3, '9': 3, '10': 3
     }
   },
   // GRADESCHOOL CALZADOS - Opción 1 (Total: 16)
@@ -213,6 +256,16 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       '3.5': 3, '4': 3, '4.5': 3, '5': 2, '5.5': 2, '6': 1, '6.5': 1, '7': 1
     }
   },
+  // GRADESCHOOL CALZADOS - Opción 3 (Total: 18)
+  {
+    genero: 'Gradeschool',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 18,
+    tallas: {
+      '3.5': 2, '4': 2, '4.5': 2, '5': 3, '5.5': 3, '6': 3, '6.5': 2, '7': 1
+    }
+  },
   // YOUTH CALZADOS - Opción 1 (Total: 19)
   {
     genero: 'Youth',
@@ -233,6 +286,17 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
     tallas: {
       '1': 2, '1.5': 2, '2': 2, '2.5': 2, '3': 2,
       '10.5': 1, '11': 1, '11.5': 1, '12': 1, '12.5': 1, '13': 1, '13.5': 1
+    }
+  },
+  // YOUTH CALZADOS - Opción 3 (Total: 22)
+  {
+    genero: 'Youth',
+    rubro: 'Calzados',
+    opcion: 3,
+    total: 22,
+    tallas: {
+      '1': 1, '1.5': 1, '2': 1, '2.5': 1, '3': 1,
+      '10.5': 3, '11': 3, '11.5': 3, '12': 3, '12.5': 2, '13': 2, '13.5': 2
     }
   }
 ];

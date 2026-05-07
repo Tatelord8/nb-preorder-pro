@@ -40,6 +40,7 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rubroFromUrl = searchParams.get('rubro');
+  const pageFromUrl = searchParams.get('page');
   const [producto, setProducto] = useState<Producto | null>(null);
   const [curvas, setCurvas] = useState<Curva[]>([]);
   const [selectedCurva, setSelectedCurva] = useState<string>("");
@@ -62,6 +63,19 @@ const ProductDetail = () => {
   const [userTier, setUserTier] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const { toast } = useToast();
+
+  const buildCatalogUrl = () => {
+    const params = new URLSearchParams();
+    if (rubroFromUrl) {
+      params.set("rubro", rubroFromUrl);
+    }
+    if (pageFromUrl && parseInt(pageFromUrl, 10) > 1) {
+      params.set("page", pageFromUrl);
+    }
+
+    const query = params.toString();
+    return `/catalog${query ? `?${query}` : ""}`;
+  };
 
   useEffect(() => {
     if (id) {
@@ -269,7 +283,7 @@ const ProductDetail = () => {
 
     // Navegar de vuelta al catálogo con el rubro correcto
     if (rubroFromUrl) {
-      navigate(`/catalog?rubro=${rubroFromUrl}`);
+      navigate(buildCatalogUrl());
     } else {
       navigate(-1);
     }
@@ -322,7 +336,7 @@ const ProductDetail = () => {
               size="icon" 
               onClick={() => {
                 if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                  navigate(buildCatalogUrl());
                 } else {
                   navigate('/catalog');
                 }
@@ -346,7 +360,7 @@ const ProductDetail = () => {
             <Button 
               onClick={() => {
                 if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                  navigate(buildCatalogUrl());
                 } else {
                   navigate('/catalog');
                 }
@@ -370,7 +384,7 @@ const ProductDetail = () => {
             size="icon" 
             onClick={() => {
               if (rubroFromUrl) {
-                navigate(`/catalog?rubro=${rubroFromUrl}`);
+                navigate(buildCatalogUrl());
               } else {
                 navigate('/catalog');
               }

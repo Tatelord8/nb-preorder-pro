@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ interface Producto {
 const Catalog = () => {
   const { categoria } = useParams<{ categoria: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,9 +44,12 @@ const Catalog = () => {
   const [userTier, setUserTier] = useState<string | null>(null);
   const { items: cartItems, loading: cartLoading, isProductInCart } = useSupabaseCart();
   
+  const initialPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+  
   // Paginación
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [itemsPerPage] = useState(24); // 24 productos por página (6x4 grid)
+  const hasInitializedPageSync = useRef(false);
 
   useEffect(() => {
     // Cargar tier del usuario al montar el componente
@@ -249,11 +252,13 @@ const Catalog = () => {
 
   const handleRubroSelect = (rubro: string) => {
     setSelectedRubro(rubro);
+    setCurrentPage(1);
     loadProductos(rubro, userTier);
   };
 
   const handleBackToBanners = () => {
     setSelectedRubro(null);
+    setCurrentPage(1);
     setProductos([]);
   };
 
@@ -268,10 +273,53 @@ const Catalog = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedProductos = filteredProductos.slice(startIndex, endIndex);
   
-  // Reset a página 1 cuando cambian los filtros o búsqueda
+  // Reset a página 1 cuando cambia la búsqueda
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedRubro]);
+  }, [searchTerm]);
+
+  // Sincronizar página desde URL (ejemplo: al volver desde ProductDetail)
+  useEffect(() => {
+    if (!hasInitializedPageSync.current) {
+      hasInitializedPageSync.current = true;
+      return;
+    }
+
+    const pageFromUrl = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    if (pageFromUrl !== currentPage) {
+      setCurrentPage(pageFromUrl);
+    }
+  }, [searchParams, currentPage]);
+
+  // Mantener currentPage dentro del rango válido
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  // Persistir estado de navegación (rubro + page) en la URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+
+    if (selectedRubro) {
+      params.set("rubro", selectedRubro);
+      if (currentPage > 1) {
+        params.set("page", currentPage.toString());
+      } else {
+        params.delete("page");
+      }
+    } else {
+      params.delete("rubro");
+      params.delete("page");
+    }
+
+    const current = searchParams.toString();
+    const next = params.toString();
+    if (current !== next) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedRubro, currentPage, searchParams, setSearchParams]);
 
   // Mostrar banners de rubros si no hay rubro seleccionado
   if (!selectedRubro) {
@@ -386,7 +434,17 @@ const Catalog = () => {
             className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
               isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
             }`}
-            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}`)}
+            onClick={() => {
+              const params = new URLSearchParams();
+              if (selectedRubro) {
+                params.set("rubro", selectedRubro);
+              }
+              if (currentPage > 1) {
+                params.set("page", currentPage.toString());
+              }
+              const query = params.toString();
+              navigate(`/product/${producto.id}${query ? `?${query}` : ""}`);
+            }}
           >
             {/* Check indicator */}
             {isProductInCart(producto.id) && (
