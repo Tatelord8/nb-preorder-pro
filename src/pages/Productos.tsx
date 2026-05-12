@@ -1929,7 +1929,7 @@ const Productos = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rubro">Rubro</Label>
-                  <Select value={formData.rubro} onValueChange={(value) => setFormData({ ...formData, rubro: value })}>
+                  <Select value={formData.rubro} onValueChange={(value) => setFormData({ ...formData, rubro: value, genero: value === "Accesorios" ? "Unisex" : formData.genero })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar rubro" />
                     </SelectTrigger>
@@ -1954,7 +1954,11 @@ const Productos = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="genero">Género *</Label>
-                  <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
+                  <Select
+                    value={formData.genero}
+                    onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                    disabled={formData.rubro === "Accesorios"}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar género" />
                     </SelectTrigger>
@@ -2110,7 +2114,7 @@ const Productos = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-rubro">Rubro</Label>
-                  <Select value={formData.rubro} onValueChange={(value) => setFormData({ ...formData, rubro: value })}>
+                  <Select value={formData.rubro} onValueChange={(value) => setFormData({ ...formData, rubro: value, genero: value === "Accesorios" ? "Unisex" : formData.genero })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar rubro" />
                     </SelectTrigger>
@@ -2135,7 +2139,11 @@ const Productos = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-genero">Género *</Label>
-                  <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
+                  <Select
+                    value={formData.genero}
+                    onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                    disabled={formData.rubro === "Accesorios"}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar género" />
                     </SelectTrigger>

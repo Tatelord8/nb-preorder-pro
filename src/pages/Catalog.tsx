@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  ArrowLeft, 
-  Check, 
-  Search, 
-  Shirt, 
+  ArrowLeft,
+  Check,
+  Search,
+  Shirt,
   ShoppingBag,
   Footprints,
-  Watch,
+  Backpack,
   ArrowRight
 } from "lucide-react";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
@@ -35,42 +35,42 @@ interface Producto {
 const Catalog = () => {
   const { categoria } = useParams<{ categoria: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRubro, setSelectedRubro] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string | null>(null);
   const { items: cartItems, loading: cartLoading, isProductInCart } = useSupabaseCart();
-  
-  // Paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(24); // 24 productos por página (6x4 grid)
 
+  // Rubro y página derivados de la URL — única fuente de verdad
+  const selectedRubro = searchParams.get('rubro');
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  const [itemsPerPage] = useState(24);
+  const searchTermMounted = useRef(false);
+
+  const setCurrentPage = (page: number) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('page', String(page));
+      return next;
+    }, { replace: true });
+  };
+
+  // Carga el tier una sola vez al montar
   useEffect(() => {
-    // Cargar tier del usuario al montar el componente
-    const initializeCatalog = async () => {
-      const tier = await loadUserTier();
-      
-      // Verificar si hay un rubro en la URL
-      const rubroFromUrl = searchParams.get('rubro');
-      if (rubroFromUrl) {
-        setSelectedRubro(rubroFromUrl);
-        loadProductos(rubroFromUrl, tier);
-      }
-    };
-    
-    initializeCatalog();
-  }, [categoria, searchParams]);
+    loadUserTier();
+  }, []);
 
-
-  // Recargar productos cuando cambie el tier del usuario
+  // Carga productos cuando cambia el rubro o el tier
   useEffect(() => {
-    if (userTier && selectedRubro) {
+    if (selectedRubro) {
       loadProductos(selectedRubro, userTier);
+    } else {
+      setProductos([]);
     }
-  }, [userTier]);
+  }, [selectedRubro, userTier, categoria]);
 
 
   const loadUserTier = async () => {
@@ -239,13 +239,12 @@ const Catalog = () => {
   };
 
   const handleRubroSelect = (rubro: string) => {
-    setSelectedRubro(rubro);
-    loadProductos(rubro, userTier);
+    setSearchParams({ rubro, page: '1' });
   };
 
   const handleBackToBanners = () => {
-    setSelectedRubro(null);
     setProductos([]);
+    setSearchParams({});
   };
 
   const filteredProductos = productos.filter(producto =>
@@ -259,10 +258,14 @@ const Catalog = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedProductos = filteredProductos.slice(startIndex, endIndex);
   
-  // Reset a página 1 cuando cambian los filtros o búsqueda
+  // Reset a página 1 al buscar (no en el primer render)
   useEffect(() => {
+    if (!searchTermMounted.current) {
+      searchTermMounted.current = true;
+      return;
+    }
     setCurrentPage(1);
-  }, [searchTerm, selectedRubro]);
+  }, [searchTerm]);
 
   // Mostrar banners de rubros si no hay rubro seleccionado
   if (!selectedRubro) {
@@ -274,7 +277,7 @@ const Catalog = () => {
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Banner Calzados */}
             <Card 
               className="group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
@@ -313,6 +316,27 @@ const Catalog = () => {
                   </p>
                 </div>
                 <div className="flex items-center justify-center text-green-600 font-semibold group-hover:text-green-700">
+                  Ver Productos
+                  <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Card>
+            {/* Banner Accesorios */}
+            <Card
+              className="group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
+              onClick={() => handleRubroSelect("Accesorios")}
+            >
+              <div className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                    <Backpack className="h-10 w-10 text-purple-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Accesorios</h2>
+                  <p className="text-gray-600 mb-4">
+                    Explorá nuestra selección de accesorios y complementos deportivos
+                  </p>
+                </div>
+                <div className="flex items-center justify-center text-purple-600 font-semibold group-hover:text-purple-700">
                   Ver Productos
                   <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -377,7 +401,7 @@ const Catalog = () => {
             className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
               isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
             }`}
-            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}`)}
+            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}&page=${currentPage}`)}
           >
             {/* Check indicator */}
             {isProductInCart(producto.id) && (
@@ -459,7 +483,7 @@ const Catalog = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
               >
                 Anterior
@@ -495,7 +519,7 @@ const Catalog = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
               >
                 Siguiente

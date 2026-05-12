@@ -4,7 +4,7 @@
  * Reglas de negocio:
  * - Si el producto es "Calzado" y "Mens": tallas 7-13 (con medias)
  * - Si el producto es "Calzado" y "Womens": tallas 6-10
- * - Si el producto es "Calzado" y "Unisex": tallas 4-13 (con medias)
+ * - Si el producto es "Calzado" y "Unisex": tallas 4-12 (con medias)
  * - Si el producto es "Prendas" y "Mens": S, M, L, XL, XXL
  * - Si el producto es "Prendas" y "Womens": XS, S, M, L, XL, XXL
  * - Para otros rubros: tallas estándar de ropa
@@ -13,6 +13,7 @@
 export interface ProductSizeInfo {
   rubro: string;
   genero: string;
+  marca?: string;
 }
 
 export type SizeType = 'shoes' | 'clothing';
@@ -21,18 +22,33 @@ export type SizeType = 'shoes' | 'clothing';
  * Genera las tallas disponibles para un producto basado en su rubro y género
  */
 export function generateSizes(product: ProductSizeInfo): string[] {
-  const { rubro, genero } = product;
-  
+  const { rubro, genero, marca } = product;
+
   // Normalizar valores para comparación
   const normalizedRubro = rubro?.toLowerCase().trim();
   const normalizedGenero = genero?.toLowerCase().trim();
-  
+  const normalizedMarca = marca?.toLowerCase().trim();
+
   // Solo aplicar reglas de calzado si el rubro es "Calzados"
   if (normalizedRubro === 'calzados' || normalizedRubro === 'calzado') {
+    // CAT Womens: tallas 5 a 9 con medios puntos
+    if (normalizedMarca === 'cat' && (normalizedGenero === 'womens' || normalizedGenero === 'mujer')) {
+      return ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'];
+    }
     return generateShoeSizes(normalizedGenero);
   }
-  
-  // Para otros rubros (Prendas, Accesorios), usar tallas de ropa
+
+  // Accesorios: talla única
+  if (normalizedRubro === 'accesorios') {
+    return ['Unic'];
+  }
+
+  // CAT Mens (prendas): S a XXXL
+  if (normalizedMarca === 'cat' && (normalizedGenero === 'mens' || normalizedGenero === 'hombre')) {
+    return ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  }
+
+  // Para otros rubros (Prendas), usar tallas de ropa
   return generateClothingSizes(normalizedGenero);
 }
 
@@ -56,8 +72,8 @@ function generateShoeSizes(genero: string): string[] {
     
     case 'unisex':
       return [
-        '4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', 
-        '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'
+        '4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5',
+        '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'
       ];
     
     case 'preschool':
@@ -87,8 +103,8 @@ function generateShoeSizes(genero: string): string[] {
     default:
       // Si no se reconoce el género, usar tallas unisex
       return [
-        '4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', 
-        '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'
+        '4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5',
+        '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'
       ];
   }
 }

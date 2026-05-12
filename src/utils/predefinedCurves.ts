@@ -9,6 +9,7 @@ export interface PredefinedCurve {
   opcion: number;
   tallas: Record<string, number>;
   total: number;
+  marca?: string; // undefined = aplica a todas las marcas sin especificación propia
 }
 
 export interface CurveOption {
@@ -160,46 +161,57 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
     },
   },
   // UNISEX CALZADOS - Opción 1 (Total: 17)
-  // Rango de tallas: 7-15
+  // Rango de tallas: 4-12 con medios (distribución plana)
   {
     genero: "Unisex",
     rubro: "Calzados",
     opcion: 1,
     total: 17,
     tallas: {
+      "4": 1,
+      "4.5": 1,
+      "5": 1,
+      "5.5": 1,
+      "6": 1,
+      "6.5": 1,
       "7": 1,
       "7.5": 1,
-      "8": 2,
-      "8.5": 2,
-      "9": 2,
-      "9.5": 2,
-      "10": 2,
-      "10.5": 2,
+      "8": 1,
+      "8.5": 1,
+      "9": 1,
+      "9.5": 1,
+      "10": 1,
+      "10.5": 1,
       "11": 1,
       "11.5": 1,
       "12": 1,
-      "13": 0,
-      "14": 0,
-      "15": 0,
     },
   },
   // UNISEX CALZADOS - Opción 2 (Total: 11)
-  // Rango de tallas: 6-10
+  // Rango de tallas: 4-12 con medios (curva centrada ~6.5–10)
   {
     genero: "Unisex",
     rubro: "Calzados",
     opcion: 2,
     total: 11,
     tallas: {
+      "4": 0,
+      "4.5": 0,
+      "5": 0,
+      "5.5": 0,
       "6": 1,
       "6.5": 1,
-      "7": 2,
-      "7.5": 2,
+      "7": 3,
+      "7.5": 1,
       "8": 2,
-      "8.5": 2,
-      "9": 2,
+      "8.5": 1,
+      "9": 1,
       "9.5": 1,
       "10": 1,
+      "10.5": 0,
+      "11": 0,
+      "11.5": 0,
+      "12": 0,
     },
   },
   // UNISEX CALZADOS - Opción 3 (Total: 27)
@@ -392,6 +404,76 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       "13.5": 1,
     },
   },
+  // CAT MENS PRENDAS - Opción 1 (Total: 18) — S a XXXL
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    opcion: 1,
+    total: 18,
+    tallas: {
+      S: 1,
+      M: 3,
+      L: 5,
+      XL: 4,
+      XXL: 3,
+      XXXL: 2,
+    },
+  },
+  // CAT MENS PRENDAS - Opción 2 (Total: 12) — S a XXXL
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    opcion: 2,
+    total: 12,
+    tallas: {
+      S: 1,
+      M: 2,
+      L: 3,
+      XL: 3,
+      XXL: 2,
+      XXXL: 1,
+    },
+  },
+  // CAT WOMENS CALZADOS - Opción 1 (Total: 18) — tallas 5 a 9
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Calzados",
+    opcion: 1,
+    total: 18,
+    tallas: {
+      "5": 1,
+      "5.5": 2,
+      "6": 3,
+      "6.5": 3,
+      "7": 3,
+      "7.5": 3,
+      "8": 2,
+      "8.5": 1,
+      "9": 0,
+    },
+  },
+  // CAT WOMENS CALZADOS - Opción 2 (Total: 12) — tallas 5 a 9
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Calzados",
+    opcion: 2,
+    total: 12,
+    tallas: {
+      "5": 1,
+      "5.5": 1,
+      "6": 2,
+      "6.5": 2,
+      "7": 2,
+      "7.5": 2,
+      "8": 1,
+      "8.5": 1,
+      "9": 0,
+    },
+  },
 ];
 
 /**
@@ -399,17 +481,26 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
  */
 export function getCurvesForGender(
   genero: string,
-  rubro?: string
+  rubro?: string,
+  marca?: string
 ): CurveOption[] {
-  let curves = PREDEFINED_CURVES.filter(
-    (curve) => curve.genero.toLowerCase() === genero.toLowerCase()
-  );
+  const normalizedMarca = marca?.toLowerCase().trim();
 
-  // Si se especifica rubro, filtrar por rubro también
-  if (rubro) {
-    curves = curves.filter(
-      (curve) => curve.rubro.toLowerCase() === rubro.toLowerCase()
-    );
+  let curves = PREDEFINED_CURVES.filter((curve) => {
+    if (curve.genero.toLowerCase() !== genero.toLowerCase()) return false;
+    if (rubro && curve.rubro.toLowerCase() !== rubro.toLowerCase()) return false;
+    // Si hay marca específica: mostrar solo curvas de esa marca o las genéricas (sin marca)
+    if (normalizedMarca) {
+      return curve.marca === normalizedMarca || curve.marca === undefined;
+    }
+    // Sin marca: mostrar solo curvas genéricas
+    return curve.marca === undefined;
+  });
+
+  // Si hay marca con curvas propias, preferir las de esa marca sobre las genéricas
+  if (normalizedMarca) {
+    const marcaCurves = curves.filter((c) => c.marca === normalizedMarca);
+    if (marcaCurves.length > 0) curves = marcaCurves;
   }
 
   return curves.map((curve) => ({
@@ -425,14 +516,28 @@ export function getCurvesForGender(
 export function getCurve(
   genero: string,
   rubro: string,
-  opcion: number
+  opcion: number,
+  marca?: string
 ): PredefinedCurve | null {
+  const normalizedMarca = marca?.toLowerCase().trim();
+  // Intentar curva específica de marca primero, luego genérica
+  if (normalizedMarca) {
+    const marcaCurve = PREDEFINED_CURVES.find(
+      (curve) =>
+        curve.genero.toLowerCase() === genero.toLowerCase() &&
+        curve.rubro.toLowerCase() === rubro.toLowerCase() &&
+        curve.opcion === opcion &&
+        curve.marca === normalizedMarca
+    );
+    if (marcaCurve) return marcaCurve;
+  }
   return (
     PREDEFINED_CURVES.find(
       (curve) =>
         curve.genero.toLowerCase() === genero.toLowerCase() &&
         curve.rubro.toLowerCase() === rubro.toLowerCase() &&
-        curve.opcion === opcion
+        curve.opcion === opcion &&
+        curve.marca === undefined
     ) || null
   );
 }
@@ -488,9 +593,10 @@ export function applyCurveToProduct(
   genero: string,
   rubro: string,
   opcion: number,
-  numberOfCurves: number = 1
+  numberOfCurves: number = 1,
+  marca?: string
 ): Record<string, number> {
-  const curve = getCurve(genero, rubro, opcion);
+  const curve = getCurve(genero, rubro, opcion, marca);
   if (!curve) return {};
 
   const result: Record<string, number> = {};

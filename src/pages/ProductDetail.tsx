@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { generateSizes, getSizeInfo, type ProductSizeInfo } from "@/utils/sizeGenerator";
-import { getCurvesForGender, getCurveInfo, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
+import { getCurvesForGender, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
 import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
 import { canUserAccessTier, getAccessDeniedMessage } from "@/utils/tierAccess";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
@@ -28,12 +27,7 @@ interface Producto {
   game_plan: boolean;
   imagen_url: string | null;
   tier?: string;
-}
-
-interface Curva {
-  id: string;
-  nombre: string;
-  talles: Record<string, number>;
+  marca_nombre?: string;
 }
 
 const ProductDetail = () => {
@@ -41,12 +35,9 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rubroFromUrl = searchParams.get('rubro');
+  const pageFromUrl = searchParams.get('page') || '1';
   const [producto, setProducto] = useState<Producto | null>(null);
-  const [curvas, setCurvas] = useState<Curva[]>([]);
-  const [selectedCurva, setSelectedCurva] = useState<string>("");
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
-  const [customTalles, setCustomTalles] = useState<Record<string, number>>({});
-  const [curvaType, setCurvaType] = useState<"predefined" | "custom">("predefined");
   const {
     addItem,
     removeItem,
@@ -58,8 +49,6 @@ const ProductDetail = () => {
     totals
   } = useSupabaseCart();
   const [isInCart, setIsInCart] = useState(false);
-  const [validSizes, setValidSizes] = useState<string[]>([]);
-  
   // Estados para curvas predefinidas
   const [availableCurves, setAvailableCurves] = useState<CurveOption[]>([]);
   const [selectedPredefinedCurve, setSelectedPredefinedCurve] = useState<number>(1);
@@ -117,7 +106,7 @@ const ProductDetail = () => {
   // Cargar curvas predefinidas cuando cambie el género y rubro del producto
   useEffect(() => {
     if (producto?.genero && producto?.rubro) {
-      const curves = getCurvesForGender(producto.genero, producto.rubro);
+      const curves = getCurvesForGender(producto.genero, producto.rubro, producto.marca_nombre);
       setAvailableCurves(curves);
       
       if (curves.length > 0) {
@@ -144,7 +133,7 @@ const ProductDetail = () => {
   // Función para actualizar las curvas aplicadas
   const updateAppliedCurve = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
-      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas);
+      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas, producto.marca_nombre);
       
       // Agregar tallas especiales si están seleccionadas
       const finalQuantities = { ...applied };
@@ -176,7 +165,7 @@ const ProductDetail = () => {
   const loadProducto = async () => {
     const { data: productoData, error: productoError } = await supabase
       .from("productos")
-      .select("*")
+      .select("*, marcas(nombre)")
       .eq("id", id)
       .single();
 
@@ -201,48 +190,17 @@ const ProductDetail = () => {
       return;
     }
 
-    setProducto(productoData);
-
-    // Generate sizes using the new size generator utility
-    const productSizeInfo: ProductSizeInfo = {
-      rubro: productoData.rubro || productoData.categoria, // Use rubro if available, fallback to categoria
-      genero: productoData.genero
-    };
-    
-    const sizeInfo = getSizeInfo(productSizeInfo);
-    setValidSizes(sizeInfo.sizes);
-
-    // Las curvas predefinidas se cargan automáticamente en el useEffect
-    // No necesitamos consultar la base de datos para curvas
-    
-    // Initialize custom talles with valid sizes
-    const initialTalles: Record<string, number> = {};
-    validSizes.forEach(size => {
-      initialTalles[size] = 0;
-    });
-    setCustomTalles(initialTalles);
+    setProducto({ ...productoData, marca_nombre: (productoData as any).marcas?.nombre ?? undefined });
   };
 
   const handleAddToCart = async () => {
-    if (curvaType === "predefined" && !selectedPredefinedCurve) {
+    if (!selectedPredefinedCurve) {
       toast({
         title: "Error",
         description: "Por favor selecciona una curva predefinida",
         variant: "destructive",
       });
       return;
-    }
-
-    if (curvaType === "custom") {
-      const hasQuantity = Object.values(customTalles).some(q => q > 0);
-      if (!hasQuantity) {
-        toast({
-          title: "Error",
-          description: "Por favor ingresa al menos una cantidad",
-          variant: "destructive",
-        });
-        return;
-      }
     }
 
     // Obtener userId de la sesión actual
@@ -258,12 +216,12 @@ const ProductDetail = () => {
 
     const newItem = {
       productoId: id!,
-      curvaId: curvaType === "predefined" ? `predefined-${selectedPredefinedCurve}` : null,
-      cantidadCurvas: curvaType === "predefined" ? cantidadCurvas : 1,
-      talles: curvaType === "custom" ? customTalles : appliedCurveQuantities,
-      type: curvaType,
+      curvaId: `predefined-${selectedPredefinedCurve}`,
+      cantidadCurvas,
+      talles: appliedCurveQuantities,
+      type: "predefined" as const,
       genero: producto?.genero,
-      opcion: curvaType === "predefined" ? selectedPredefinedCurve : null,
+      opcion: selectedPredefinedCurve,
       precio_usd: producto?.precio_usd,
     };
 
@@ -279,7 +237,7 @@ const ProductDetail = () => {
 
     // Navegar de vuelta al catálogo con el rubro correcto
     if (rubroFromUrl) {
-      navigate(`/catalog?rubro=${rubroFromUrl}`);
+      navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
     } else {
       navigate(-1);
     }
@@ -292,9 +250,9 @@ const ProductDetail = () => {
       console.log('🗑️ Eliminando producto del carrito:', id);
       
       // Determinar los parámetros para eliminar (deben coincidir con los usados al agregar)
-      const curvaId = curvaType === "predefined" ? `predefined-${selectedPredefinedCurve}` : undefined;
-      const tipo = curvaType;
-      const opcion = curvaType === "predefined" ? selectedPredefinedCurve : undefined;
+      const curvaId = `predefined-${selectedPredefinedCurve}`;
+      const tipo = "predefined" as const;
+      const opcion = selectedPredefinedCurve;
       
       console.log('🔍 Parámetros de eliminación:', { curvaId, tipo, opcion });
       
@@ -332,7 +290,7 @@ const ProductDetail = () => {
               size="icon" 
               onClick={() => {
                 if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                  navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
                 } else {
                   navigate('/catalog');
                 }
@@ -356,7 +314,7 @@ const ProductDetail = () => {
             <Button 
               onClick={() => {
                 if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}`);
+                  navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
                 } else {
                   navigate('/catalog');
                 }
@@ -380,7 +338,7 @@ const ProductDetail = () => {
             size="icon"
             onClick={() => {
               if (rubroFromUrl) {
-                navigate(`/catalog?rubro=${rubroFromUrl}`);
+                navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
               } else {
                 navigate('/catalog');
               }
@@ -434,178 +392,86 @@ const ProductDetail = () => {
             </div>
 
             <div className="space-y-4 border-t pt-4">
-              <Label>Tipo de curva</Label>
-              <RadioGroup value={curvaType} onValueChange={(v: any) => setCurvaType(v)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="predefined" id="predefined" />
-                  <Label htmlFor="predefined">Curva Predefinida</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <Label htmlFor="custom">Curva Personalizada</Label>
-                </div>
-              </RadioGroup>
-
-              {curvaType === "predefined" ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>Seleccionar curva</Label>
-                    <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
-                      {availableCurves.map((curve) => (
-                        <div key={curve.opcion} className="flex items-center space-x-2">
-                          <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
-                          <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
-                            <div className="flex justify-between">
-                              <span>Opción {curve.opcion}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {curve.total} unidades
-                              </span>
-                            </div>
-                          </Label>
+              <Label>Curva predefinida</Label>
+              <div className="space-y-2">
+                <Label>Seleccionar curva</Label>
+                <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
+                  {availableCurves.map((curve) => (
+                    <div key={curve.opcion} className="flex items-center space-x-2">
+                      <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
+                      <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
+                        <div className="flex justify-between">
+                          <span>Opción {curve.opcion}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {curve.total} unidades
+                          </span>
                         </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
 
+              <div className="space-y-2">
+                <Label>Cantidad de curvas</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={cantidadCurvas}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
+                  }}
+                  onBlur={(e) => {
+                    if (cantidadCurvas === 0) setCantidadCurvas(1);
+                  }}
+                />
+              </div>
+
+              {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+                <div className="space-y-2">
+                  <Label>Seleccionar Tallas Especiales</Label>
+                  <div className="text-sm text-gray-600 mb-2">
+                    Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
+                  </div>
                   <div className="space-y-2">
-                    <Label>Cantidad de curvas</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={cantidadCurvas}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
-                      }}
-                      onBlur={(e) => {
-                        if (cantidadCurvas === 0) setCantidadCurvas(1);
-                      }}
-                    />
-                  </div>
-
-                  {/* Seleccionar Tallas Especiales */}
-                  {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
-                    <div className="space-y-2">
-                      <Label>Seleccionar Tallas Especiales</Label>
-                      <div className="text-sm text-gray-600 mb-2">
-                        Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
-                      </div>
-                      <div className="space-y-2">
-                        {['13', '14', '15'].map((size) => (
-                          <div key={size} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`special-${size}`}
-                              checked={specialSizes[size]}
-                              onChange={(e) => {
-                                setSpecialSizes({
-                                  ...specialSizes,
-                                  [size]: e.target.checked,
-                                });
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <Label htmlFor={`special-${size}`} className="text-sm">
-                              Talla {size} (+6 unidades)
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Vista previa de las cantidades aplicadas */}
-                  {Object.keys(appliedCurveQuantities).length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Vista previa de cantidades</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
-                        {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
-                          <div key={talla} className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">{talla}</span>
-                            <span className="text-gray-600">{cantidad}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Total: {Object.values(appliedCurveQuantities).reduce((sum, qty) => sum + qty, 0)} unidades
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <Label>Cantidades por talle</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {validSizes.map((talle) => (
-                      <div key={talle} className="space-y-2">
-                        <Label>{talle}</Label>
-                        {['13', '14', '15'].includes(talle) && 
-                         producto?.rubro?.toLowerCase() === 'calzados' && 
-                         producto?.genero?.toLowerCase() === 'mens' ? (
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={customTalles[talle] || 0}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 0;
-                                const allowedValue = value === 6 ? 6 : 0;
-                                setCustomTalles({
-                                  ...customTalles,
-                                  [talle]: allowedValue,
-                                });
-                              }}
-                              className="flex-1"
-                            />
-                            <div className="flex flex-col">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-4 w-6 p-0"
-                                onClick={() => {
-                                  const currentValue = customTalles[talle] || 0;
-                                  setCustomTalles({
-                                    ...customTalles,
-                                    [talle]: currentValue === 0 ? 6 : 6,
-                                  });
-                                }}
-                              >
-                                ↑
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-4 w-6 p-0"
-                                onClick={() => {
-                                  const currentValue = customTalles[talle] || 0;
-                                  setCustomTalles({
-                                    ...customTalles,
-                                    [talle]: currentValue === 6 ? 0 : 0,
-                                  });
-                                }}
-                              >
-                                ↓
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Input
-                            type="number"
-                            min="0"
-                            value={customTalles[talle] || 0}
-                            onChange={(e) =>
-                              setCustomTalles({
-                                ...customTalles,
-                                [talle]: parseInt(e.target.value) || 0,
-                              })
-                            }
-                          />
-                        )}
+                    {['13', '14', '15'].map((size) => (
+                      <div key={size} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`special-${size}`}
+                          checked={specialSizes[size]}
+                          onChange={(e) => {
+                            setSpecialSizes({
+                              ...specialSizes,
+                              [size]: e.target.checked,
+                            });
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor={`special-${size}`} className="text-sm">
+                          Talla {size} (+6 unidades)
+                        </Label>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {Object.keys(appliedCurveQuantities).length > 0 && (
+                <div className="space-y-2">
+                  <Label>Vista previa de cantidades</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
+                    {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
+                      <div key={talla} className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">{talla}</span>
+                        <span className="text-gray-600">{cantidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Total: {Object.values(appliedCurveQuantities).reduce((sum, qty) => sum + qty, 0)} unidades
                   </div>
                 </div>
               )}

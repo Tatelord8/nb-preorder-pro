@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
 import { CartStatus } from "@/components/CartStatus";
+import { generateSizes } from "@/utils/sizeGenerator";
 
 interface CartItem {
   productoId: string;
@@ -31,6 +32,7 @@ interface ProductoDetalle {
   genero?: string;
   rubro?: string;
   imagen_url?: string;
+  marca_nombre?: string;
 }
 
 const Cart = () => {
@@ -91,13 +93,13 @@ const Cart = () => {
       if (productIds.length > 0) {
         const { data } = await supabase
           .from("productos")
-          .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url, rubro")
+          .select("id, sku, nombre, precio_usd, linea, categoria, genero, imagen_url, rubro, marcas(nombre)")
           .in("id", productIds);
 
         if (data) {
           const productMap: Record<string, ProductoDetalle> = {};
           data.forEach((p: any) => {
-            productMap[p.id] = p;
+            productMap[p.id] = { ...p, marca_nombre: p.marcas?.nombre ?? undefined };
           });
           setProductos(productMap);
         }
@@ -252,7 +254,7 @@ const Cart = () => {
       "SKU",
       "Producto", 
       "Precio Unitario",
-      "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14", "15",
+      "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14", "15",
       "S", "M", "L", "XL", "XXL", "XS",
       "Cantidad",
       "Subtotal"
@@ -277,14 +279,11 @@ const Cart = () => {
       let tallasPrendas: string[] = [];
       
       if (producto?.rubro?.toLowerCase() === 'calzados') {
-        // Tallas de calzados según género
-        if (producto?.genero?.toLowerCase() === 'mens') {
-          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14', '15'];
-        } else if (producto?.genero?.toLowerCase() === 'womens') {
-          tallasCalzados = ['6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10'];
-        } else {
-          tallasCalzados = ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14', '15'];
-        }
+        tallasCalzados = generateSizes({
+          rubro: 'Calzados',
+          genero: producto?.genero || 'Mens',
+          marca: producto?.marca_nombre,
+        });
       } else if (producto?.rubro?.toLowerCase() === 'prendas') {
         // Tallas de prendas según género
         if (producto?.genero?.toLowerCase() === 'mens') {
