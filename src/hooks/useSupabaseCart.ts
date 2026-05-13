@@ -140,28 +140,11 @@ export function useSupabaseCart(): UseSupabaseCartReturn {
       const localItems = CartStorageService.getCart(currentUserId);
 
       if (localItems.length > 0) {
+        // localStorage tiene datos → siempre confiar en él
+        // No dejar que Supabase sobreescriba con datos más antiguos
+        isInitialized.current = true;
         setItems(localItems);
         setLoading(false);
-
-        // En background, verificar si Supabase tiene datos más recientes
-        // Solo en la primera carga
-        if (!isInitialized.current) {
-          isInitialized.current = true;
-          const { data: supabaseCart } = await supabase
-            .from('carritos_pendientes')
-            .select('items, updated_at')
-            .eq('user_id', currentUserId)
-            .single();
-
-          if (supabaseCart && supabaseCart.items) {
-            const supabaseItems = supabaseCart.items as unknown as CartItem[];
-            // Si Supabase tiene más items, usar esos
-            if (supabaseItems.length > localItems.length) {
-              setItems(supabaseItems);
-              CartStorageService.saveCart(currentUserId, supabaseItems);
-            }
-          }
-        }
       } else {
         // No hay items locales, intentar cargar desde Supabase
         const { data: supabaseCart } = await supabase
@@ -265,9 +248,9 @@ export function useSupabaseCart(): UseSupabaseCartReturn {
 
         setSaveStatus('saved');
         
-        // Forzar sincronización inmediata con Supabase para que se refleje rápido
+        // Forzar sincronización inmediata con Supabase (awaited para garantizar persistencia)
         if (hasValidClienteId) {
-          forceSyncNow();
+          await forceSyncNow();
         }
       } catch (err) {
         console.error('❌ Error removiendo item:', err);

@@ -5,6 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Download, Trash2, RefreshCw, History } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
@@ -52,6 +62,7 @@ const Cart = () => {
   const [clienteInfo, setClienteInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -463,7 +474,7 @@ const Cart = () => {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleRemoveItem(index)}
+                        onClick={() => setItemToRemove(index)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -505,6 +516,29 @@ const Cart = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={itemToRemove !== null} onOpenChange={(open) => { if (!open) setItemToRemove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desea eliminar el artículo del pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción quitará el artículo de tu carrito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemToRemove !== null) {
+                  handleRemoveItem(itemToRemove);
+                  setItemToRemove(null);
+                }
+              }}
+            >
+              Sí
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

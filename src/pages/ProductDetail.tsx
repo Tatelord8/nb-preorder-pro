@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { getCurvesForGender, applyCurveToProduct, type CurveOption } from "@/utils/predefinedCurves";
 import { sortQuantitiesBySizeOrder } from "@/utils/sizeOrdering";
@@ -27,7 +37,18 @@ interface Producto {
   game_plan: boolean;
   imagen_url: string | null;
   tier?: string;
+  look?: number | null;
   marca_nombre?: string;
+}
+
+interface LookProducto {
+  id: string;
+  sku: string;
+  nombre: string;
+  precio_usd: number;
+  imagen_url: string | null;
+  rubro: string;
+  genero: string;
 }
 
 const ProductDetail = () => {
@@ -60,6 +81,8 @@ const ProductDetail = () => {
   });
   const [userTier, setUserTier] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [lookProductos, setLookProductos] = useState<LookProducto[]>([]);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -69,6 +92,14 @@ const ProductDetail = () => {
       checkIfInCart();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (producto?.look != null) {
+      loadLookProductos(producto.look, producto.id);
+    } else {
+      setLookProductos([]);
+    }
+  }, [producto?.look, producto?.id]);
 
   // Verificar si el producto está en el carrito cuando los items del carrito cambien
   useEffect(() => {
@@ -162,6 +193,15 @@ const ProductDetail = () => {
     }
   };
 
+  const loadLookProductos = async (look: number, currentId: string) => {
+    const { data } = await supabase
+      .from("productos")
+      .select("id, sku, nombre, precio_usd, imagen_url, rubro, genero")
+      .eq("look", look)
+      .neq("id", currentId);
+    if (data) setLookProductos(data as LookProducto[]);
+  };
+
   const loadProducto = async () => {
     const { data: productoData, error: productoError } = await supabase
       .from("productos")
@@ -190,7 +230,11 @@ const ProductDetail = () => {
       return;
     }
 
-    setProducto({ ...productoData, marca_nombre: (productoData as any).marcas?.nombre ?? undefined });
+    setProducto({
+      ...productoData,
+      marca_nombre: (productoData as any).marcas?.nombre ?? undefined,
+      look: (productoData as any).look ?? null,
+    });
   };
 
   const handleAddToCart = async () => {
@@ -356,7 +400,7 @@ const ProductDetail = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-10">
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           <div>
             <div className={`aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center p-6 ${
@@ -490,10 +534,10 @@ const ProductDetail = () => {
                     Puedes eliminar este producto del pedido usando el botón de abajo
                   </p>
                 </div>
-                <Button 
-                  onClick={handleRemoveFromCart} 
-                  variant="destructive" 
-                  className="w-full" 
+                <Button
+                  onClick={() => setShowRemoveDialog(true)}
+                  variant="destructive"
+                  className="w-full"
                   size="lg"
                 >
                   <Trash2 className="h-5 w-5 mr-2" />
@@ -505,8 +549,64 @@ const ProductDetail = () => {
                 Agregar a pedido
               </Button>
             )}
+
+            <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Desea eliminar el artículo del pedido?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción quitará el artículo de tu carrito.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>No</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => { setShowRemoveDialog(false); handleRemoveFromCart(); }}>
+                    Sí
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </Card>
         </div>
+        {lookProductos.length > 0 && (
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-xl font-semibold mb-4">
+              Completa el look
+            </h2>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {lookProductos.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() =>
+                    navigate(
+                      `/product/${item.id}?rubro=${rubroFromUrl || ""}&page=${pageFromUrl}`
+                    )
+                  }
+                  className="flex-none w-40 text-left group"
+                >
+                  <div className="aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center p-3 border group-hover:border-primary transition-colors">
+                    {item.imagen_url ? (
+                      <img
+                        src={item.imagen_url}
+                        alt={item.nombre}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                    {item.nombre}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{item.sku}</p>
+                  <p className="text-sm font-semibold">USD ${item.precio_usd}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

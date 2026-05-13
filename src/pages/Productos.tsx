@@ -63,6 +63,7 @@ interface Producto {
   categoria: string;
   genero: string;
   tier?: string;
+  look?: number | null;
   game_plan: boolean;
   imagen_url?: string;
   xfd?: string;
@@ -137,6 +138,7 @@ const Productos = () => {
     categoria: "",
     genero: "",
     tier: "",
+    look: "",
     game_plan: false,
     imagen_url: "",
     xfd: "",
@@ -392,6 +394,7 @@ const Productos = () => {
       if (formData.imagen_url) productData.imagen_url = formData.imagen_url;
       if (formData.xfd) productData.xfd = formData.xfd;
       if (formData.fecha_despacho) productData.fecha_despacho = formData.fecha_despacho;
+      productData.look = formData.look ? parseInt(formData.look) : null;
 
       console.log("🔄 Creating product in database...", productData);
       
@@ -448,6 +451,7 @@ const Productos = () => {
       if (formData.imagen_url) productData.imagen_url = formData.imagen_url;
       if (formData.xfd) productData.xfd = formData.xfd;
       if (formData.fecha_despacho) productData.fecha_despacho = formData.fecha_despacho;
+      productData.look = formData.look ? parseInt(formData.look) : null;
 
       console.log("🔄 Updating product in database...", { id: editingProduct.id, data: productData });
       
@@ -559,6 +563,7 @@ const Productos = () => {
       categoria: producto.categoria,
       genero: producto.genero,
       tier: producto.tier || "",
+      look: producto.look != null ? producto.look.toString() : "",
       game_plan: producto.game_plan,
       imagen_url: producto.imagen_url || "",
       xfd: producto.xfd || "",
@@ -578,6 +583,7 @@ const Productos = () => {
       categoria: "",
       genero: "",
       tier: "",
+      look: "",
       game_plan: false,
       imagen_url: "",
       xfd: "",
@@ -682,6 +688,7 @@ const Productos = () => {
             else if (header.includes('imagen') || header.includes('url')) product.imagen_url = value;
             else if (header.includes('xfd')) product.xfd = value;
             else if (header.includes('fecha_despacho') || header.includes('despacho')) product.fecha_despacho = value;
+            else if (header.includes('look')) product.look = value;
             else {
               // Si no coincide con ningún patrón conocido, usar el nombre del header
               product[header] = value;
@@ -858,6 +865,7 @@ const Productos = () => {
           
           if (marcaId) productData.marca_id = marcaId;
           if (product.rubro) productData.rubro = product.rubro;
+          if (product.look) productData.look = parseInt(product.look) || null;
           
           console.log(`🔄 Processing product ${product.sku} (upserting)...`);
           
@@ -1234,7 +1242,7 @@ const Productos = () => {
     // Crear contenido CSV con formato correcto
     const headers = [
       'SKU',
-      'Nombre', 
+      'Nombre',
       'Marca',
       'Precio_USD',
       'Línea',
@@ -1242,12 +1250,13 @@ const Productos = () => {
       'Categoría',
       'Género',
       'Tier',
+      'Look',
       'Game_Plan',
       'Imagen_URL',
       'XFD',
       'Fecha_Despacho'
     ];
-    
+
     const sampleData = [
       [
         'NB001',
@@ -1258,6 +1267,7 @@ const Productos = () => {
         'Calzados',
         'Deportivo',
         'Unisex',
+        '1',
         '1',
         'FALSE',
         'https://example.com/nb-classic574.jpg',
@@ -1273,6 +1283,7 @@ const Productos = () => {
         'Prendas',
         'Unisex',
         '2',
+        '1',
         'FALSE',
         'https://example.com/nb-hoodie.jpg',
         '2024-04-12',
@@ -1288,6 +1299,7 @@ const Productos = () => {
         'Running',
         'Hombre',
         '2',
+        '',
         'TRUE',
         'https://example.com/nike-airmax270.jpg',
         '2024-03-18',
@@ -1430,6 +1442,7 @@ const Productos = () => {
                     <TableHead>Género</TableHead>
                     <TableHead>Precio USD</TableHead>
                     <TableHead>Tier</TableHead>
+                    <TableHead>Look</TableHead>
                     <TableHead>Game Plan</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
@@ -1453,6 +1466,13 @@ const Productos = () => {
                           <Badge variant="outline">Tier {producto.tier}</Badge>
                         ) : (
                           "Sin tier"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {producto.look != null ? (
+                          <Badge variant="secondary">Look {producto.look}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1991,6 +2011,20 @@ const Productos = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="look">Look (opcional)</Label>
+                  <Input
+                    id="look"
+                    type="number"
+                    min="1"
+                    placeholder="Ej: 1, 2, 3..."
+                    value={formData.look}
+                    onChange={(e) => setFormData({ ...formData, look: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="imagen_url">URL de Imagen</Label>
                   <Input
                     id="imagen_url"
@@ -2175,6 +2209,20 @@ const Productos = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-look">Look (opcional)</Label>
+                  <Input
+                    id="edit-look"
+                    type="number"
+                    min="1"
+                    placeholder="Ej: 1, 2, 3..."
+                    value={formData.look}
+                    onChange={(e) => setFormData({ ...formData, look: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-imagen_url">URL de Imagen</Label>
                   <Input

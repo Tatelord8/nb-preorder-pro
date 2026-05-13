@@ -123,19 +123,21 @@ export class CartSyncService {
     try {
       // Obtener carrito local
       const localItems = CartStorageService.getCart(userId);
-      // NO sincronizar si el carrito está vacío
+      const currentHash = this.calculateCartHash(localItems);
+
+      // Si el carrito está vacío, limpiar Supabase también
       if (localItems.length === 0) {
+        await supabase.from('carritos_pendientes').delete().eq('user_id', userId);
+        this.lastSyncHash = currentHash;
         this.syncInProgress = false;
         this.notifyListeners({
-          status: 'idle',
-          lastSyncTime: this.lastSyncTime,
+          status: 'synced',
+          lastSyncTime: new Date(),
           lastError: null,
           pendingChanges: false,
         });
         return { success: true };
       }
-
-      const currentHash = this.calculateCartHash(localItems);
 
       // Verificar si hay cambios
       if (!force && currentHash === this.lastSyncHash) {

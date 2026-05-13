@@ -229,6 +229,7 @@ export type Database = {
           id: string
           imagen_url: string | null
           linea: string | null
+          look: number | null
           marca_id: string | null
           nombre: string
           precio_usd: number
@@ -246,6 +247,7 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           linea?: string | null
+          look?: number | null
           marca_id?: string | null
           nombre: string
           precio_usd: number
@@ -263,6 +265,7 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           linea?: string | null
+          look?: number | null
           marca_id?: string | null
           nombre?: string
           precio_usd?: number
