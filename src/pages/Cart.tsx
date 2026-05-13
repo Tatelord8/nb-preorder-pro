@@ -263,10 +263,11 @@ const Cart = () => {
     // Crear headers en el orden correcto
     const headers = [
       "SKU",
-      "Producto", 
+      "Producto",
       "Precio Unitario",
       "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14", "15",
       "S", "M", "L", "XL", "XXL", "XS",
+      "Unic",
       "Cantidad",
       "Subtotal"
     ];
@@ -288,7 +289,8 @@ const Cart = () => {
       // Determinar las tallas según el rubro del producto
       let tallasCalzados: string[] = [];
       let tallasPrendas: string[] = [];
-      
+      let tallasAccesorios: string[] = [];
+
       if (producto?.rubro?.toLowerCase() === 'calzados') {
         tallasCalzados = generateSizes({
           rubro: 'Calzados',
@@ -296,7 +298,6 @@ const Cart = () => {
           marca: producto?.marca_nombre,
         });
       } else if (producto?.rubro?.toLowerCase() === 'prendas') {
-        // Tallas de prendas según género
         if (producto?.genero?.toLowerCase() === 'mens') {
           tallasPrendas = ['S', 'M', 'L', 'XL', 'XXL'];
         } else if (producto?.genero?.toLowerCase() === 'womens') {
@@ -304,6 +305,8 @@ const Cart = () => {
         } else {
           tallasPrendas = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
         }
+      } else if (producto?.rubro?.toLowerCase() === 'accesorios') {
+        tallasAccesorios = ['Unic'];
       }
 
       // Debug: Log completo del item
@@ -334,6 +337,15 @@ const Cart = () => {
         if (index !== -1 && itemData.talles_cantidades && itemData.talles_cantidades[talle]) {
           row[index] = itemData.talles_cantidades[talle];
           console.log(`👕 Prenda ${talle}: ${itemData.talles_cantidades[talle]}`);
+        }
+      });
+
+      // Llenar cantidad de accesorios (talla única)
+      tallasAccesorios.forEach(talle => {
+        const index = headers.indexOf(talle);
+        if (index !== -1 && itemData.talles_cantidades && itemData.talles_cantidades[talle]) {
+          row[index] = itemData.talles_cantidades[talle];
+          console.log(`🎒 Accesorio ${talle}: ${itemData.talles_cantidades[talle]}`);
         }
       });
 

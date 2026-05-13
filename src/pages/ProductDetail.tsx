@@ -59,6 +59,7 @@ const ProductDetail = () => {
   const pageFromUrl = searchParams.get('page') || '1';
   const [producto, setProducto] = useState<Producto | null>(null);
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
+  const [cantidadAccesorios, setCantidadAccesorios] = useState<number>(1);
   const {
     addItem,
     removeItem,
@@ -104,13 +105,15 @@ const ProductDetail = () => {
   // Verificar si el producto está en el carrito cuando los items del carrito cambien
   useEffect(() => {
     if (id && !cartLoading) {
-      console.log('🔄 Carrito actualizado, verificando producto:', id);
-      console.log('🛒 Items en carrito:', cartItems.length);
-      console.log('🛒 IDs de productos:', cartItems.map(item => item.productoId));
-      
       const isInCart = checkIsInCart(id);
       setIsInCart(isInCart);
-      console.log('✅ Producto en carrito:', isInCart);
+
+      if (isInCart) {
+        const cartItem = cartItems.find(item => item.productoId === id);
+        if (cartItem?.talles?.Unic !== undefined) {
+          setCantidadAccesorios(cartItem.talles.Unic);
+        }
+      }
     }
   }, [cartItems, cartLoading, id, checkIsInCart]);
 
@@ -238,10 +241,21 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = async () => {
-    if (!selectedPredefinedCurve) {
+    const isAccesorios = producto?.rubro?.toLowerCase() === 'accesorios';
+
+    if (!isAccesorios && !selectedPredefinedCurve) {
       toast({
         title: "Error",
         description: "Por favor selecciona una curva predefinida",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isAccesorios && cantidadAccesorios < 1) {
+      toast({
+        title: "Error",
+        description: "La cantidad debe ser mayor a 0",
         variant: "destructive",
       });
       return;
@@ -258,16 +272,27 @@ const ProductDetail = () => {
       return;
     }
 
-    const newItem = {
-      productoId: id!,
-      curvaId: `predefined-${selectedPredefinedCurve}`,
-      cantidadCurvas,
-      talles: appliedCurveQuantities,
-      type: "predefined" as const,
-      genero: producto?.genero,
-      opcion: selectedPredefinedCurve,
-      precio_usd: producto?.precio_usd,
-    };
+    const newItem = isAccesorios
+      ? {
+          productoId: id!,
+          curvaId: "accesorios-unic",
+          cantidadCurvas: 1,
+          talles: { Unic: cantidadAccesorios },
+          type: "predefined" as const,
+          genero: producto?.genero,
+          opcion: 1,
+          precio_usd: producto?.precio_usd,
+        }
+      : {
+          productoId: id!,
+          curvaId: `predefined-${selectedPredefinedCurve}`,
+          cantidadCurvas,
+          talles: appliedCurveQuantities,
+          type: "predefined" as const,
+          genero: producto?.genero,
+          opcion: selectedPredefinedCurve,
+          precio_usd: producto?.precio_usd,
+        };
 
     // Usar SupabaseCartService para agregar al carrito
     await addItem(newItem);
@@ -436,88 +461,111 @@ const ProductDetail = () => {
             </div>
 
             <div className="space-y-4 border-t pt-4">
-              <Label>Curva predefinida</Label>
-              <div className="space-y-2">
-                <Label>Seleccionar curva</Label>
-                <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
-                  {availableCurves.map((curve) => (
-                    <div key={curve.opcion} className="flex items-center space-x-2">
-                      <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
-                      <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
-                        <div className="flex justify-between">
-                          <span>Opción {curve.opcion}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {curve.total} unidades
-                          </span>
-                        </div>
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Cantidad de curvas</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={cantidadCurvas}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
-                  }}
-                  onBlur={(e) => {
-                    if (cantidadCurvas === 0) setCantidadCurvas(1);
-                  }}
-                />
-              </div>
-
-              {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+              {producto?.rubro?.toLowerCase() === 'accesorios' ? (
                 <div className="space-y-2">
-                  <Label>Seleccionar Tallas Especiales</Label>
-                  <div className="text-sm text-gray-600 mb-2">
-                    Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
-                  </div>
+                  <Label>Cantidad</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={cantidadAccesorios}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setCantidadAccesorios(val);
+                    }}
+                    onBlur={() => {
+                      if (cantidadAccesorios < 1) setCantidadAccesorios(1);
+                    }}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Talla única · {cantidadAccesorios} {cantidadAccesorios === 1 ? 'unidad' : 'unidades'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Label>Curva predefinida</Label>
                   <div className="space-y-2">
-                    {['13', '14', '15'].map((size) => (
-                      <div key={size} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`special-${size}`}
-                          checked={specialSizes[size]}
-                          onChange={(e) => {
-                            setSpecialSizes({
-                              ...specialSizes,
-                              [size]: e.target.checked,
-                            });
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor={`special-${size}`} className="text-sm">
-                          Talla {size} (+6 unidades)
-                        </Label>
-                      </div>
-                    ))}
+                    <Label>Seleccionar curva</Label>
+                    <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
+                      {availableCurves.map((curve) => (
+                        <div key={curve.opcion} className="flex items-center space-x-2">
+                          <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
+                          <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
+                            <div className="flex justify-between">
+                              <span>Opción {curve.opcion}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {curve.total} unidades
+                              </span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
                   </div>
-                </div>
-              )}
 
-              {Object.keys(appliedCurveQuantities).length > 0 && (
-                <div className="space-y-2">
-                  <Label>Vista previa de cantidades</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
-                    {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
-                      <div key={talla} className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">{talla}</span>
-                        <span className="text-gray-600">{cantidad}</span>
+                  <div className="space-y-2">
+                    <Label>Cantidad de curvas</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={cantidadCurvas}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
+                      }}
+                      onBlur={() => {
+                        if (cantidadCurvas === 0) setCantidadCurvas(1);
+                      }}
+                    />
+                  </div>
+
+                  {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+                    <div className="space-y-2">
+                      <Label>Seleccionar Tallas Especiales</Label>
+                      <div className="text-sm text-gray-600 mb-2">
+                        Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
                       </div>
-                    ))}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Total: {Object.values(appliedCurveQuantities).reduce((sum, qty) => sum + qty, 0)} unidades
-                  </div>
-                </div>
+                      <div className="space-y-2">
+                        {['13', '14', '15'].map((size) => (
+                          <div key={size} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`special-${size}`}
+                              checked={specialSizes[size]}
+                              onChange={(e) => {
+                                setSpecialSizes({
+                                  ...specialSizes,
+                                  [size]: e.target.checked,
+                                });
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`special-${size}`} className="text-sm">
+                              Talla {size} (+6 unidades)
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {Object.keys(appliedCurveQuantities).length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Vista previa de cantidades</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
+                        {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
+                          <div key={talla} className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">{talla}</span>
+                            <span className="text-gray-600">{cantidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Total: {Object.values(appliedCurveQuantities).reduce((sum, qty) => sum + qty, 0)} unidades
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
