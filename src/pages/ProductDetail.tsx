@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,7 @@ interface LookProducto {
   imagen_url: string | null;
   rubro: string;
   genero: string;
+  tier?: string;
 }
 
 const ProductDetail = () => {
@@ -86,6 +87,17 @@ const ProductDetail = () => {
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const { toast } = useToast();
 
+  // Reset all product-specific state when navigating to a different product
+  useEffect(() => {
+    setProducto(null);
+    setCantidadCurvas(1);
+    setSelectedPredefinedCurve(1);
+    setSpecialSizes({ '13': false, '14': false, '15': false });
+    setAppliedCurveQuantities({});
+    setIsInCart(false);
+    setAccessDenied(false);
+  }, [id]);
+
   useEffect(() => {
     if (id) {
       loadUserTier();
@@ -100,18 +112,26 @@ const ProductDetail = () => {
     } else {
       setLookProductos([]);
     }
-  }, [producto?.look, producto?.id]);
+  }, [producto?.look, producto?.id, userTier]);
 
-  // Verificar si el producto está en el carrito cuando los items del carrito cambien
+  // Sync cart state: restore quantities/curve from the saved cart item
   useEffect(() => {
     if (id && !cartLoading) {
-      const isInCart = checkIsInCart(id);
-      setIsInCart(isInCart);
+      const inCart = checkIsInCart(id);
+      setIsInCart(inCart);
 
-      if (isInCart) {
+      if (inCart) {
         const cartItem = cartItems.find(item => item.productoId === id);
-        if (cartItem?.talles?.Unic !== undefined) {
-          setCantidadAccesorios(cartItem.talles.Unic);
+        if (cartItem) {
+          if (cartItem.talles?.Unic !== undefined) {
+            setCantidadAccesorios(cartItem.talles.Unic);
+          }
+          if (cartItem.cantidadCurvas !== undefined) {
+            setCantidadCurvas(cartItem.cantidadCurvas);
+          }
+          if (cartItem.opcion !== undefined) {
+            setSelectedPredefinedCurve(cartItem.opcion);
+          }
         }
       }
     }
@@ -199,10 +219,15 @@ const ProductDetail = () => {
   const loadLookProductos = async (look: number, currentId: string) => {
     const { data } = await supabase
       .from("productos")
-      .select("id, sku, nombre, precio_usd, imagen_url, rubro, genero")
+      .select("id, sku, nombre, precio_usd, imagen_url, rubro, genero, tier")
       .eq("look", look)
       .neq("id", currentId);
-    if (data) setLookProductos(data as LookProducto[]);
+    if (data) {
+      const accessible = (data as LookProducto[]).filter(
+        (p) => canUserAccessTier(userTier ?? "0", p.tier ?? "0")
+      );
+      setLookProductos(accessible);
+    }
   };
 
   const loadProducto = async () => {
@@ -303,33 +328,22 @@ const ProductDetail = () => {
       title: "Agregado al pedido",
       description: "El producto fue agregado exitosamente",
     });
-
-    // Navegar de vuelta al catálogo con el rubro correcto
-    if (rubroFromUrl) {
-      navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
-    } else {
-      navigate(-1);
-    }
   };
 
   const handleRemoveFromCart = async () => {
     if (!id) return;
 
     try {
-      console.log('🗑️ Eliminando producto del carrito:', id);
-      
-      // Determinar los parámetros para eliminar (deben coincidir con los usados al agregar)
-      const curvaId = `predefined-${selectedPredefinedCurve}`;
-      const tipo = "predefined" as const;
-      const opcion = selectedPredefinedCurve;
-      
-      console.log('🔍 Parámetros de eliminación:', { curvaId, tipo, opcion });
-      
-      // Usar SupabaseCartService para eliminar del carrito
-      await removeItem(id, curvaId, tipo, opcion);
+      // Use the actual stored values from the cart item to guarantee the filter matches
+      const cartItem = cartItems.find(item => item.productoId === id);
+      if (!cartItem) {
+        setIsInCart(false);
+        return;
+      }
+
+      await removeItem(id, cartItem.curvaId, cartItem.type, cartItem.opcion);
 
       setIsInCart(false);
-      console.log('✅ Producto eliminado exitosamente');
 
       toast({
         title: "Eliminado del pedido",
@@ -481,80 +495,84 @@ const ProductDetail = () => {
                   </p>
                 </div>
               ) : (
-                <>
-                  <Label>Curva predefinida</Label>
-                  <div className="space-y-2">
-                    <Label>Seleccionar curva</Label>
-                    <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
-                      {availableCurves.map((curve) => (
-                        <div key={curve.opcion} className="flex items-center space-x-2">
-                          <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
-                          <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
-                            <div className="flex justify-between">
-                              <span>Opción {curve.opcion}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {curve.total} unidades
-                              </span>
-                            </div>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Cantidad de curvas</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={cantidadCurvas}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
-                      }}
-                      onBlur={() => {
-                        if (cantidadCurvas === 0) setCantidadCurvas(1);
-                      }}
-                    />
-                  </div>
-
-                  {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Left column: curve selection + special sizes */}
+                  <div className="space-y-4">
+                    <Label>Curva predefinida</Label>
                     <div className="space-y-2">
-                      <Label>Seleccionar Tallas Especiales</Label>
-                      <div className="text-sm text-gray-600 mb-2">
-                        Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
-                      </div>
-                      <div className="space-y-2">
-                        {['13', '14', '15'].map((size) => (
-                          <div key={size} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`special-${size}`}
-                              checked={specialSizes[size]}
-                              onChange={(e) => {
-                                setSpecialSizes({
-                                  ...specialSizes,
-                                  [size]: e.target.checked,
-                                });
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <Label htmlFor={`special-${size}`} className="text-sm">
-                              Talla {size} (+6 unidades)
+                      <Label>Seleccionar curva</Label>
+                      <RadioGroup value={selectedPredefinedCurve.toString()} onValueChange={(value) => setSelectedPredefinedCurve(parseInt(value))}>
+                        {availableCurves.map((curve) => (
+                          <div key={curve.opcion} className="flex items-center space-x-2">
+                            <RadioGroupItem value={curve.opcion.toString()} id={`curve-${curve.opcion}`} />
+                            <Label htmlFor={`curve-${curve.opcion}`} className="flex-1">
+                              <div className="flex justify-between">
+                                <span>Opción {curve.opcion}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {curve.total} unidades
+                                </span>
+                              </div>
                             </Label>
                           </div>
                         ))}
-                      </div>
+                      </RadioGroup>
                     </div>
-                  )}
 
+                    <div className="space-y-2">
+                      <Label>Cantidad de curvas</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={cantidadCurvas}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCantidadCurvas(val === "" ? 0 : parseInt(val) || 0);
+                        }}
+                        onBlur={() => {
+                          if (cantidadCurvas === 0) setCantidadCurvas(1);
+                        }}
+                      />
+                    </div>
+
+                    {producto?.rubro?.toLowerCase() === 'calzados' && producto?.genero?.toLowerCase() === 'mens' && (
+                      <div className="space-y-2">
+                        <Label>Seleccionar Tallas Especiales</Label>
+                        <div className="text-sm text-gray-600 mb-2">
+                          Agregar 6 unidades de las tallas seleccionadas a tu curva predefinida
+                        </div>
+                        <div className="space-y-2">
+                          {['13', '14', '15'].map((size) => (
+                            <div key={size} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`special-${size}`}
+                                checked={specialSizes[size]}
+                                onChange={(e) => {
+                                  setSpecialSizes({
+                                    ...specialSizes,
+                                    [size]: e.target.checked,
+                                  });
+                                }}
+                                className="rounded border-gray-300"
+                              />
+                              <Label htmlFor={`special-${size}`} className="text-sm">
+                                Talla {size} (+6 unidades)
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right column: quantities preview */}
                   {Object.keys(appliedCurveQuantities).length > 0 && (
                     <div className="space-y-2">
                       <Label>Vista previa de cantidades</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded">
+                      <div className="space-y-1">
                         {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
-                          <div key={talla} className="flex items-center gap-2 text-sm">
+                          <div key={talla} className="flex justify-between text-sm">
                             <span className="font-medium">{talla}</span>
                             <span className="text-gray-600">{cantidad}</span>
                           </div>
@@ -565,7 +583,7 @@ const ProductDetail = () => {
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
@@ -621,7 +639,7 @@ const ProductDetail = () => {
             <h2 className="text-xl font-semibold mb-4">
               Completa el look
             </h2>
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <div className="flex gap-4 overflow-x-auto pb-2 items-start">
               {lookProductos.map((item) => (
                 <button
                   key={item.id}
@@ -630,9 +648,16 @@ const ProductDetail = () => {
                       `/product/${item.id}?rubro=${rubroFromUrl || ""}&page=${pageFromUrl}`
                     )
                   }
-                  className="flex-none w-40 text-left group"
+                  className="flex-none w-40 text-left group relative"
                 >
-                  <div className="aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center p-3 border group-hover:border-primary transition-colors">
+                  {checkIsInCart(item.id) && (
+                    <div className="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1">
+                      <Check className="h-3 w-3" />
+                    </div>
+                  )}
+                  <div className={`aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center p-3 transition-colors ${
+                    checkIsInCart(item.id) ? 'border-2 border-green-500' : 'border group-hover:border-primary'
+                  }`}>
                     {item.imagen_url ? (
                       <img
                         src={item.imagen_url}

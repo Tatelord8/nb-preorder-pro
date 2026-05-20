@@ -30,6 +30,7 @@ interface Producto {
   imagen_url: string | null;
   rubro?: string;
   tier?: string;
+  marca_id?: string;
 }
 
 const Catalog = () => {
@@ -43,8 +44,9 @@ const Catalog = () => {
   const [userTier, setUserTier] = useState<string | null>(null);
   const { items: cartItems, loading: cartLoading, isProductInCart } = useSupabaseCart();
 
-  // Rubro y página derivados de la URL — única fuente de verdad
+  // Rubro, marca y página derivados de la URL — única fuente de verdad
   const selectedRubro = searchParams.get('rubro');
+  const selectedMarcaId = searchParams.get('marca');
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [itemsPerPage] = useState(24);
@@ -63,14 +65,14 @@ const Catalog = () => {
     loadUserTier();
   }, []);
 
-  // Carga productos cuando cambia el rubro o el tier
+  // Carga productos cuando cambia el rubro, marca o el tier
   useEffect(() => {
     if (selectedRubro) {
       loadProductos(selectedRubro, userTier);
     } else {
       setProductos([]);
     }
-  }, [selectedRubro, userTier, categoria]);
+  }, [selectedRubro, selectedMarcaId, userTier, categoria]);
 
 
   const loadUserTier = async () => {
@@ -217,10 +219,14 @@ const Catalog = () => {
          console.log("🔍 No hay tier, mostrando todos los productos");
        }
       
+      if (selectedMarcaId) {
+        filteredData = filteredData.filter(producto => producto.marca_id === selectedMarcaId);
+      }
+
       if (rubro) {
         filteredData = filteredData.filter(producto => producto.rubro === rubro);
       }
-      
+
       if (categoria) {
         filteredData = filteredData.filter(producto => producto.categoria === categoria);
       }
@@ -239,12 +245,22 @@ const Catalog = () => {
   };
 
   const handleRubroSelect = (rubro: string) => {
-    setSearchParams({ rubro, page: '1' });
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('rubro', rubro);
+      next.set('page', '1');
+      return next;
+    });
   };
 
   const handleBackToBanners = () => {
     setProductos([]);
-    setSearchParams({});
+    setSearchParams(prev => {
+      const next = new URLSearchParams();
+      const marca = prev.get('marca');
+      if (marca) next.set('marca', marca);
+      return next;
+    });
   };
 
   const filteredProductos = productos.filter(producto =>

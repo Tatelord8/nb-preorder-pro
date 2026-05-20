@@ -23,6 +23,7 @@ import Autorizacion from "./pages/Autorizacion";
 import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
+import BrandSelect from "./pages/BrandSelect";
 import NotFound from "./pages/NotFound";
 import SizeGeneratorTest from "./components/SizeGeneratorTest";
 import CurvesTest from "./components/CurvesTest";
@@ -42,6 +43,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/brand-select" element={<BrandSelect />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/manual-setup" element={<ManualSetup />} />
           <Route path="/auth" element={<Auth />} />

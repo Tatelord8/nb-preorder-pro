@@ -179,8 +179,8 @@ const Login = () => {
         });
 
         // Redirect based on role
-        if (userRole?.role === "superadmin") {
-          navigate("/catalog");
+        if (userRole?.role === "cliente") {
+          navigate("/brand-select");
         } else {
           navigate("/catalog");
         }
@@ -201,13 +201,13 @@ const Login = () => {
       <Card className="w-full max-w-md p-8">
             <div className="text-center space-y-4 mb-8">
               <div className="flex justify-center mb-4">
-                <img 
-                  src="https://www.pngmart.com/files/23/New-Balance-Logo-PNG-Isolated-HD.png" 
-                  alt="New Balance Logo" 
+                <img
+                  src="/optima.png"
+                  alt="Optima Logo"
                   className="h-24 w-auto object-contain"
                 />
               </div>
-              <h1 className="text-3xl font-bold leading-[1.1]">Preventa New Balance</h1>
+              <h1 className="text-3xl font-bold leading-[1.1]">Preventa Optima</h1>
               <p className="text-muted-foreground">Optima S.A</p>
             </div>
 
