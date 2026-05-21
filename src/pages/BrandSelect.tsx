@@ -67,7 +67,10 @@ const BrandSelect = () => {
           {marcas.map((marca) => (
             <button
               key={marca.id}
-              onClick={() => navigate(`/catalog?marca=${marca.id}`)}
+              onClick={() => {
+                localStorage.setItem('selectedMarcaId', marca.id);
+                navigate(`/catalog?marca=${marca.id}`);
+              }}
               className="group flex flex-col items-center justify-center gap-3 p-6 bg-white rounded-xl border-2 border-transparent hover:border-black shadow-sm hover:shadow-md transition-all w-40 h-40"
             >
               {marca.logo_url ? (

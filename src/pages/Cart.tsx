@@ -63,6 +63,7 @@ const Cart = () => {
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<number | null>(null);
+  const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -403,7 +404,10 @@ const Cart = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/catalog")}
+              onClick={() => {
+                const storedMarca = localStorage.getItem('selectedMarcaId');
+                navigate(storedMarca ? `/catalog?marca=${storedMarca}` : '/catalog');
+              }}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver al Catálogo
@@ -453,7 +457,10 @@ const Cart = () => {
             <p className="text-muted-foreground mb-6">
               Agrega productos desde el catálogo para comenzar tu pedido
             </p>
-            <Button onClick={() => navigate("/catalog")}>
+            <Button onClick={() => {
+                const storedMarca = localStorage.getItem('selectedMarcaId');
+                navigate(storedMarca ? `/catalog?marca=${storedMarca}` : '/catalog');
+              }}>
               Ir al Catálogo
             </Button>
           </div>
@@ -466,27 +473,44 @@ const Cart = () => {
                 if (!producto) return null;
 
                 return (
-                  <Card key={`${item.productoId}-${index}`} className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{producto.nombre}</h3>
-                        <p className="text-sm text-muted-foreground">SKU: {producto.sku}</p>
-                        <div className="mt-2 space-y-1">
+                  <Card key={`${item.productoId}-${index}`} className="p-4">
+                    <div className="flex gap-4 items-start">
+                      {/* Imagen del producto */}
+                      <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+                        {producto.imagen_url ? (
+                          <img
+                            src={producto.imagen_url}
+                            alt={producto.nombre}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-2xl text-muted-foreground">📦</span>
+                        )}
+                      </div>
+
+                      {/* Info del producto */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base leading-tight truncate">{producto.nombre}</h3>
+                        <p className="text-xs text-muted-foreground mb-2">SKU: {producto.sku}</p>
+                        <div className="space-y-0.5">
                           <p className="text-sm">
                             <span className="font-medium">Cantidad:</span> {calculateTotalQuantity(item.talles)} unidades
                           </p>
                           <p className="text-sm">
                             <span className="font-medium">Precio unitario:</span> ${producto.precio_usd}
                           </p>
-                          <p className="text-sm">
-                            <span className="font-medium">Subtotal:</span> ${calculateSubtotal(item).toFixed(2)}
+                          <p className="text-sm font-semibold text-primary">
+                            Subtotal: ${calculateSubtotal(item).toFixed(2)}
                           </p>
                         </div>
                       </div>
+
+                      {/* Botón eliminar */}
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => setItemToRemove(index)}
+                        className="flex-shrink-0"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -516,7 +540,7 @@ const Cart = () => {
                   
                   <Button
                     variant="outline"
-                    onClick={handleClearCart}
+                    onClick={() => setShowClearCartDialog(true)}
                     size="lg"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -528,6 +552,27 @@ const Cart = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={showClearCartDialog} onOpenChange={setShowClearCartDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desea vaciar el carrito?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará todos los productos de tu carrito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowClearCartDialog(false);
+                handleClearCart();
+              }}
+            >
+              Sí
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={itemToRemove !== null} onOpenChange={(open) => { if (!open) setItemToRemove(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

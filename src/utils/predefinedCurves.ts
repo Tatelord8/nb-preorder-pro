@@ -10,6 +10,8 @@ export interface PredefinedCurve {
   tallas: Record<string, number>;
   total: number;
   marca?: string; // undefined = aplica a todas las marcas sin especificación propia
+  work?: boolean;
+  silueta?: string;
 }
 
 export interface CurveOption {
@@ -404,64 +406,33 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       "13.5": 1,
     },
   },
-  // CAT MENS PRENDAS - Opción 1 (Total: 18) — S a XXXL
+  // CAT CALZADOS MENS — Opción 1 (Total: 15)
   {
     marca: "cat",
     genero: "Mens",
-    rubro: "Prendas",
-    opcion: 1,
-    total: 18,
-    tallas: {
-      S: 1,
-      M: 3,
-      L: 5,
-      XL: 4,
-      XXL: 3,
-      XXXL: 2,
-    },
-  },
-  // CAT MENS PRENDAS - Opción 2 (Total: 12) — S a XXXL
-  {
-    marca: "cat",
-    genero: "Mens",
-    rubro: "Prendas",
-    opcion: 2,
-    total: 12,
-    tallas: {
-      S: 1,
-      M: 2,
-      L: 3,
-      XL: 3,
-      XXL: 2,
-      XXXL: 1,
-    },
-  },
-  // CAT WOMENS CALZADOS - Opción 1 (Total: 18) — tallas 5 a 9
-  {
-    marca: "cat",
-    genero: "Womens",
     rubro: "Calzados",
     opcion: 1,
-    total: 18,
+    total: 15,
     tallas: {
-      "5": 1,
-      "5.5": 2,
-      "6": 3,
-      "6.5": 3,
-      "7": 3,
-      "7.5": 3,
+      "7": 1,
+      "7.5": 1,
       "8": 2,
-      "8.5": 1,
-      "9": 0,
+      "8.5": 2,
+      "9": 2,
+      "9.5": 2,
+      "10": 2,
+      "10.5": 1,
+      "11": 1,
+      "12": 1,
     },
   },
-  // CAT WOMENS CALZADOS - Opción 2 (Total: 12) — tallas 5 a 9
+  // CAT CALZADOS WOMENS — Opción 1 (Total: 14)
   {
     marca: "cat",
     genero: "Womens",
     rubro: "Calzados",
-    opcion: 2,
-    total: 12,
+    opcion: 1,
+    total: 14,
     tallas: {
       "5": 1,
       "5.5": 1,
@@ -469,9 +440,162 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       "6.5": 2,
       "7": 2,
       "7.5": 2,
-      "8": 1,
+      "8": 2,
       "8.5": 1,
-      "9": 0,
+      "9": 1,
+    },
+  },
+  // CAT PRENDAS MENS TOP — Opción 1 (Total: 5)
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    silueta: "top",
+    opcion: 1,
+    total: 5,
+    tallas: {
+      S: 1,
+      M: 1,
+      L: 1,
+      XL: 1,
+      "2XL": 1,
+    },
+  },
+  // CAT PRENDAS MENS TOP — Opción 2 (Total: 8)
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    silueta: "top",
+    opcion: 2,
+    total: 8,
+    tallas: {
+      S: 1,
+      M: 2,
+      L: 2,
+      XL: 2,
+      "2XL": 1,
+    },
+  },
+  // CAT PRENDAS MENS TOP — Opción 3 (Total: 11) — solo cuando work=true (incluye 3XL y 4XL)
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    silueta: "top",
+    work: true,
+    opcion: 3,
+    total: 11,
+    tallas: {
+      S: 1,
+      M: 2,
+      L: 2,
+      XL: 2,
+      "2XL": 2,
+      "3XL": 1,
+      "4XL": 1,
+    },
+  },
+  // CAT PRENDAS WOMENS TOP — Opción 1 (Total: 4)
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Prendas",
+    silueta: "top",
+    opcion: 1,
+    total: 4,
+    tallas: {
+      XS: 1,
+      S: 1,
+      M: 1,
+      L: 1,
+      XL: 0,
+    },
+  },
+  // CAT PRENDAS WOMENS TOP — Opción 2 (Total: 7)
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Prendas",
+    silueta: "top",
+    opcion: 2,
+    total: 7,
+    tallas: {
+      XS: 1,
+      S: 2,
+      M: 2,
+      L: 1,
+      XL: 1,
+    },
+  },
+  // CAT PRENDAS MENS PANT — Opción 1 (Total: 6)
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    silueta: "pant",
+    opcion: 1,
+    total: 6,
+    tallas: {
+      "28": 0,
+      "30": 1,
+      "32": 1,
+      "34": 1,
+      "36": 1,
+      "38": 1,
+      "40": 1,
+      "42": 0,
+    },
+  },
+  // CAT PRENDAS MENS PANT — Opción 2 (Total: 9)
+  {
+    marca: "cat",
+    genero: "Mens",
+    rubro: "Prendas",
+    silueta: "pant",
+    opcion: 2,
+    total: 9,
+    tallas: {
+      "28": 0,
+      "30": 1,
+      "32": 2,
+      "34": 2,
+      "36": 2,
+      "38": 1,
+      "40": 1,
+      "42": 0,
+    },
+  },
+  // CAT PRENDAS WOMENS PANT — Opción 1 (Total: 5)
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Prendas",
+    silueta: "pant",
+    opcion: 1,
+    total: 5,
+    tallas: {
+      "24": 1,
+      "26": 1,
+      "28": 1,
+      "30": 1,
+      "32": 1,
+    },
+  },
+  // CAT PRENDAS WOMENS PANT — Opción 2 (Total: 7)
+  {
+    marca: "cat",
+    genero: "Womens",
+    rubro: "Prendas",
+    silueta: "pant",
+    opcion: 2,
+    total: 7,
+    tallas: {
+      "24": 1,
+      "26": 2,
+      "28": 2,
+      "30": 1,
+      "32": 1,
     },
   },
 ];
@@ -482,22 +606,35 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
 export function getCurvesForGender(
   genero: string,
   rubro?: string,
-  marca?: string
+  marca?: string,
+  work?: boolean | null,
+  silueta?: string | null
 ): CurveOption[] {
   const normalizedMarca = marca?.toLowerCase().trim();
+  const normalizedSilueta = silueta?.toLowerCase().trim();
+  const hasWork = work !== undefined && work !== null;
 
   let curves = PREDEFINED_CURVES.filter((curve) => {
     if (curve.genero.toLowerCase() !== genero.toLowerCase()) return false;
     if (rubro && curve.rubro.toLowerCase() !== rubro.toLowerCase()) return false;
-    // Si hay marca específica: mostrar solo curvas de esa marca o las genéricas (sin marca)
+
+    if (normalizedSilueta) {
+      // La curva debe tener la misma silueta
+      if (curve.silueta?.toLowerCase() !== normalizedSilueta) return false;
+      // Para "top": también filtrar por work si se proporcionó
+      // Si la curva exige un valor de work, verificar que coincida con el producto
+      if (curve.work !== undefined && curve.work !== work) return false;
+    } else {
+      // Sin silueta: excluir curvas que requieren silueta o work
+      if (curve.silueta !== undefined || curve.work !== undefined) return false;
+    }
+
     if (normalizedMarca) {
       return curve.marca === normalizedMarca || curve.marca === undefined;
     }
-    // Sin marca: mostrar solo curvas genéricas
     return curve.marca === undefined;
   });
 
-  // Si hay marca con curvas propias, preferir las de esa marca sobre las genéricas
   if (normalizedMarca) {
     const marcaCurves = curves.filter((c) => c.marca === normalizedMarca);
     if (marcaCurves.length > 0) curves = marcaCurves;
@@ -517,29 +654,36 @@ export function getCurve(
   genero: string,
   rubro: string,
   opcion: number,
-  marca?: string
+  marca?: string,
+  work?: boolean | null,
+  silueta?: string | null
 ): PredefinedCurve | null {
   const normalizedMarca = marca?.toLowerCase().trim();
+  const normalizedSilueta = silueta?.toLowerCase().trim();
+  const hasWork = work !== undefined && work !== null;
+
+  const matches = (curve: PredefinedCurve) => {
+    if (curve.genero.toLowerCase() !== genero.toLowerCase()) return false;
+    if (curve.rubro.toLowerCase() !== rubro.toLowerCase()) return false;
+    if (curve.opcion !== opcion) return false;
+    if (normalizedSilueta) {
+      if (curve.silueta?.toLowerCase() !== normalizedSilueta) return false;
+      // Si la curva exige un valor de work, verificar que coincida con el producto
+      if (curve.work !== undefined && curve.work !== work) return false;
+    } else {
+      if (curve.silueta !== undefined || curve.work !== undefined) return false;
+    }
+    return true;
+  };
+
   // Intentar curva específica de marca primero, luego genérica
   if (normalizedMarca) {
     const marcaCurve = PREDEFINED_CURVES.find(
-      (curve) =>
-        curve.genero.toLowerCase() === genero.toLowerCase() &&
-        curve.rubro.toLowerCase() === rubro.toLowerCase() &&
-        curve.opcion === opcion &&
-        curve.marca === normalizedMarca
+      (curve) => matches(curve) && curve.marca === normalizedMarca
     );
     if (marcaCurve) return marcaCurve;
   }
-  return (
-    PREDEFINED_CURVES.find(
-      (curve) =>
-        curve.genero.toLowerCase() === genero.toLowerCase() &&
-        curve.rubro.toLowerCase() === rubro.toLowerCase() &&
-        curve.opcion === opcion &&
-        curve.marca === undefined
-    ) || null
-  );
+  return PREDEFINED_CURVES.find((curve) => matches(curve) && curve.marca === undefined) || null;
 }
 
 /**
@@ -594,9 +738,11 @@ export function applyCurveToProduct(
   rubro: string,
   opcion: number,
   numberOfCurves: number = 1,
-  marca?: string
+  marca?: string,
+  work?: boolean | null,
+  silueta?: string | null
 ): Record<string, number> {
-  const curve = getCurve(genero, rubro, opcion, marca);
+  const curve = getCurve(genero, rubro, opcion, marca, work, silueta);
   if (!curve) return {};
 
   const result: Record<string, number> = {};

@@ -39,6 +39,8 @@ interface Producto {
   tier?: string;
   look?: number | null;
   marca_nombre?: string;
+  work?: boolean | null;
+  silueta?: string | null;
 }
 
 interface LookProducto {
@@ -58,6 +60,7 @@ const ProductDetail = () => {
   const [searchParams] = useSearchParams();
   const rubroFromUrl = searchParams.get('rubro');
   const pageFromUrl = searchParams.get('page') || '1';
+  const marcaFromUrl = searchParams.get('marca');
   const [producto, setProducto] = useState<Producto | null>(null);
   const [cantidadCurvas, setCantidadCurvas] = useState<number>(1);
   const [cantidadAccesorios, setCantidadAccesorios] = useState<number>(1);
@@ -160,7 +163,7 @@ const ProductDetail = () => {
   // Cargar curvas predefinidas cuando cambie el género y rubro del producto
   useEffect(() => {
     if (producto?.genero && producto?.rubro) {
-      const curves = getCurvesForGender(producto.genero, producto.rubro, producto.marca_nombre);
+      const curves = getCurvesForGender(producto.genero, producto.rubro, producto.marca_nombre, producto.work, producto.silueta);
       setAvailableCurves(curves);
       
       if (curves.length > 0) {
@@ -187,7 +190,7 @@ const ProductDetail = () => {
   // Función para actualizar las curvas aplicadas
   const updateAppliedCurve = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
-      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas, producto.marca_nombre);
+      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas, producto.marca_nombre, producto.work, producto.silueta);
       
       // Agregar tallas especiales si están seleccionadas
       const finalQuantities = { ...applied };
@@ -262,6 +265,8 @@ const ProductDetail = () => {
       ...productoData,
       marca_nombre: (productoData as any).marcas?.nombre ?? undefined,
       look: (productoData as any).look ?? null,
+      work: (productoData as any).work ?? null,
+      silueta: (productoData as any).silueta ?? null,
     });
   };
 
@@ -372,10 +377,14 @@ const ProductDetail = () => {
               variant="ghost" 
               size="icon" 
               onClick={() => {
-                if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
-                } else {
-                  navigate('/catalog');
+                {
+                  const marca = marcaFromUrl || localStorage.getItem('selectedMarcaId') || '';
+                  const marcaParam = marca ? `&marca=${marca}` : '';
+                  if (rubroFromUrl) {
+                    navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}${marcaParam}`);
+                  } else {
+                    navigate(marca ? `/catalog?marca=${marca}` : '/catalog');
+                  }
                 }
               }}
             >
@@ -396,10 +405,14 @@ const ProductDetail = () => {
             </div>
             <Button 
               onClick={() => {
-                if (rubroFromUrl) {
-                  navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}`);
-                } else {
-                  navigate('/catalog');
+                {
+                  const marca = marcaFromUrl || localStorage.getItem('selectedMarcaId') || '';
+                  const marcaParam = marca ? `&marca=${marca}` : '';
+                  if (rubroFromUrl) {
+                    navigate(`/catalog?rubro=${rubroFromUrl}&page=${pageFromUrl}${marcaParam}`);
+                  } else {
+                    navigate(marca ? `/catalog?marca=${marca}` : '/catalog');
+                  }
                 }
               }}
               className="w-full"

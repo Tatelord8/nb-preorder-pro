@@ -234,8 +234,10 @@ export type Database = {
           nombre: string
           precio_usd: number
           rubro: string
+          silueta: string | null
           sku: string
           tier: string | null
+          work: boolean | null
           xfd: string | null
         }
         Insert: {
@@ -252,8 +254,10 @@ export type Database = {
           nombre: string
           precio_usd: number
           rubro: string
+          silueta?: string | null
           sku: string
           tier?: string | null
+          work?: boolean | null
           xfd?: string | null
         }
         Update: {
@@ -270,8 +274,10 @@ export type Database = {
           nombre?: string
           precio_usd?: number
           rubro?: string
+          silueta?: string | null
           sku?: string
           tier?: string | null
+          work?: boolean | null
           xfd?: string | null
         }
         Relationships: [

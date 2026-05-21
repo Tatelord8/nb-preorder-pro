@@ -69,6 +69,8 @@ interface Producto {
   xfd?: string;
   fecha_despacho?: string;
   marca_id?: string;
+  work?: boolean | null;
+  silueta?: string | null;
   marcas?: {
     nombre: string;
   };
@@ -142,7 +144,9 @@ const Productos = () => {
     game_plan: false,
     imagen_url: "",
     xfd: "",
-    fecha_despacho: ""
+    fecha_despacho: "",
+    work: false as boolean,
+    silueta: ""
   });
 
   useEffect(() => {
@@ -396,6 +400,16 @@ const Productos = () => {
       if (formData.fecha_despacho) productData.fecha_despacho = formData.fecha_despacho;
       productData.look = formData.look ? parseInt(formData.look) : null;
 
+      // work y silueta: solo para CAT
+      const selectedMarcaNombre = marcas.find(m => m.id === formData.marca_id)?.nombre?.toLowerCase() || '';
+      if (selectedMarcaNombre === 'cat') {
+        productData.work = formData.work;
+        productData.silueta = formData.silueta || null;
+      } else {
+        productData.work = null;
+        productData.silueta = null;
+      }
+
       console.log("🔄 Creating product in database...", productData);
       
       const { data, error } = await supabase
@@ -452,6 +466,16 @@ const Productos = () => {
       if (formData.xfd) productData.xfd = formData.xfd;
       if (formData.fecha_despacho) productData.fecha_despacho = formData.fecha_despacho;
       productData.look = formData.look ? parseInt(formData.look) : null;
+
+      // work y silueta: solo para CAT
+      const selectedMarcaNombre = marcas.find(m => m.id === formData.marca_id)?.nombre?.toLowerCase() || '';
+      if (selectedMarcaNombre === 'cat') {
+        productData.work = formData.work;
+        productData.silueta = formData.silueta || null;
+      } else {
+        productData.work = null;
+        productData.silueta = null;
+      }
 
       console.log("🔄 Updating product in database...", { id: editingProduct.id, data: productData });
       
@@ -567,7 +591,9 @@ const Productos = () => {
       game_plan: producto.game_plan,
       imagen_url: producto.imagen_url || "",
       xfd: producto.xfd || "",
-      fecha_despacho: producto.fecha_despacho || ""
+      fecha_despacho: producto.fecha_despacho || "",
+      work: producto.work ?? false,
+      silueta: producto.silueta || ""
     });
     setShowEditForm(true);
   };
@@ -587,7 +613,9 @@ const Productos = () => {
       game_plan: false,
       imagen_url: "",
       xfd: "",
-      fecha_despacho: ""
+      fecha_despacho: "",
+      work: false,
+      silueta: ""
     });
   };
 
@@ -689,6 +717,8 @@ const Productos = () => {
             else if (header.includes('xfd')) product.xfd = value;
             else if (header.includes('fecha_despacho') || header.includes('despacho')) product.fecha_despacho = value;
             else if (header.includes('look')) product.look = value;
+            else if (header.includes('work')) product.work = value;
+            else if (header.includes('silueta')) product.silueta = value;
             else {
               // Si no coincide con ningún patrón conocido, usar el nombre del header
               product[header] = value;
@@ -866,6 +896,19 @@ const Productos = () => {
           if (marcaId) productData.marca_id = marcaId;
           if (product.rubro) productData.rubro = product.rubro;
           if (product.look) productData.look = parseInt(product.look) || null;
+
+          // work y silueta: solo válidos para marca CAT
+          const marcaNombreUpper = (product.marca || '').toLowerCase();
+          if (marcaNombreUpper.includes('cat')) {
+            const workVal = product.work;
+            if (workVal !== undefined && workVal !== '') {
+              productData.work = workVal === 'TRUE' || workVal === 'true' || workVal === '1' || workVal === 'SI' || workVal === 'si';
+            }
+            if (product.silueta) productData.silueta = product.silueta.toLowerCase();
+          } else {
+            productData.work = null;
+            productData.silueta = null;
+          }
           
           console.log(`🔄 Processing product ${product.sku} (upserting)...`);
           
@@ -1254,7 +1297,9 @@ const Productos = () => {
       'Game_Plan',
       'Imagen_URL',
       'XFD',
-      'Fecha_Despacho'
+      'Fecha_Despacho',
+      'Work',
+      'Silueta'
     ];
 
     const sampleData = [
@@ -1272,7 +1317,9 @@ const Productos = () => {
         'FALSE',
         'https://example.com/nb-classic574.jpg',
         '2024-03-15',
-        '2024-04-01'
+        '2024-04-01',
+        '',
+        ''
       ],
       [
         'NB002',
@@ -1287,23 +1334,27 @@ const Productos = () => {
         'FALSE',
         'https://example.com/nb-hoodie.jpg',
         '2024-04-12',
-        '2024-04-27'
+        '2024-04-27',
+        '',
+        ''
       ],
       [
-        'NIKE001',
-        'Air Max 270',
-        'Nike',
-        '150.00',
-        'Air Max',
-        'Calzados',
-        'Running',
-        'Hombre',
+        'CAT001',
+        'Camiseta Work Top Mens',
+        'CAT',
+        '45.00',
+        'Workwear',
+        'Prendas',
+        'Workwear',
+        'Mens',
         '2',
         '',
-        'TRUE',
-        'https://example.com/nike-airmax270.jpg',
+        'FALSE',
+        '',
         '2024-03-18',
-        '2024-04-03'
+        '2024-04-03',
+        'TRUE',
+        'top'
       ]
     ];
 
@@ -2066,6 +2117,41 @@ const Productos = () => {
                 <Label htmlFor="game_plan">Game Plan</Label>
               </div>
 
+              {(() => {
+                const marcaNombre = marcas.find(m => m.id === formData.marca_id)?.nombre?.toLowerCase() || '';
+                const isCat = marcaNombre.includes('cat');
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className={`flex items-center space-x-2 pt-2 ${!isCat ? 'opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        id="work"
+                        checked={formData.work}
+                        disabled={!isCat}
+                        onChange={(e) => setFormData({ ...formData, work: e.target.checked })}
+                      />
+                      <Label htmlFor="work" className={!isCat ? 'text-muted-foreground' : ''}>Work</Label>
+                    </div>
+                    <div className={`space-y-2 ${!isCat ? 'opacity-50' : ''}`}>
+                      <Label htmlFor="silueta" className={!isCat ? 'text-muted-foreground' : ''}>Silueta</Label>
+                      <Select
+                        value={formData.silueta}
+                        onValueChange={(value) => setFormData({ ...formData, silueta: value })}
+                        disabled={!isCat}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isCat ? 'Seleccionar silueta' : 'N/A'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="top">Top</SelectItem>
+                          <SelectItem value="pant">Pant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
                   Cancelar
@@ -2264,6 +2350,41 @@ const Productos = () => {
                 />
                 <Label htmlFor="edit-game_plan">Game Plan</Label>
               </div>
+
+              {(() => {
+                const marcaNombre = marcas.find(m => m.id === formData.marca_id)?.nombre?.toLowerCase() || '';
+                const isCat = marcaNombre.includes('cat');
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className={`flex items-center space-x-2 pt-2 ${!isCat ? 'opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        id="edit-work"
+                        checked={formData.work}
+                        disabled={!isCat}
+                        onChange={(e) => setFormData({ ...formData, work: e.target.checked })}
+                      />
+                      <Label htmlFor="edit-work" className={!isCat ? 'text-muted-foreground' : ''}>Work</Label>
+                    </div>
+                    <div className={`space-y-2 ${!isCat ? 'opacity-50' : ''}`}>
+                      <Label htmlFor="edit-silueta" className={!isCat ? 'text-muted-foreground' : ''}>Silueta</Label>
+                      <Select
+                        value={formData.silueta}
+                        onValueChange={(value) => setFormData({ ...formData, silueta: value })}
+                        disabled={!isCat}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isCat ? 'Seleccionar silueta' : 'N/A'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="top">Top</SelectItem>
+                          <SelectItem value="pant">Pant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowEditForm(false)}>

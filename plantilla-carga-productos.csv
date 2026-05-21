@@ -1,4 +1,4 @@
-SKU,Nombre,Marca,Precio_USD,Línea,Rubro,Categoría,Género,Tier,Game_Plan,Imagen_URL,XFD,Fecha_Despacho
-M108020E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Mens,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253275/M1080G14-1.jpg,2025-01-15,2025-05-15
-M108021E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Womens,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253276/M1080G14-2.jpg,2025-01-15,2025-05-15
-M108022E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Unisex,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253277/M1080G14-3.jpg,2025-01-15,2025-05-15
+SKU,Nombre,Marca,Precio_USD,Línea,Rubro,Categoría,Género,Tier,Game_Plan,Imagen_URL,XFD,Fecha_Despacho,Work,Silueta
+M108020E,FRESH FOAM X 1080 V14,New Balance,89.99,1080,Calzados,PERFORMANCE RUNNING,Mens,4,TRUE,https://optimapy.vtexassets.com/arquivos/ids/253275/M1080G14-1.jpg,2025-01-15,2025-05-15,,
+CAT001,CAMISETA WORK TOP,CAT,45.00,WORKWEAR,Prendas,WORKWEAR,Mens,2,FALSE,,2025-01-15,2025-05-15,TRUE,top
+CAT002,CAMISETA CASUAL TOP,CAT,40.00,CASUALWEAR,Prendas,CASUALWEAR,Mens,2,FALSE,,2025-01-15,2025-05-15,FALSE,top

@@ -14,6 +14,8 @@ export interface ProductSizeInfo {
   rubro: string;
   genero: string;
   marca?: string;
+  work?: boolean | null;
+  silueta?: string | null;
 }
 
 export type SizeType = 'shoes' | 'clothing';
@@ -43,9 +45,37 @@ export function generateSizes(product: ProductSizeInfo): string[] {
     return ['Unic'];
   }
 
-  // CAT Mens (prendas): S a XXXL
-  if (normalizedMarca === 'cat' && (normalizedGenero === 'mens' || normalizedGenero === 'hombre')) {
-    return ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  // CAT prendas: tallas según silueta, work y género
+  if (normalizedMarca === 'cat' && (normalizedRubro === 'prendas')) {
+    const normalizedSilueta = product.silueta?.toLowerCase().trim();
+
+    if (normalizedSilueta === 'pant') {
+      if (normalizedGenero === 'mens' || normalizedGenero === 'hombre') {
+        return ['28', '30', '32', '34', '36', '38', '40', '42'];
+      }
+      if (normalizedGenero === 'womens' || normalizedGenero === 'mujer') {
+        return ['24', '26', '28', '30', '32'];
+      }
+    }
+
+    if (normalizedSilueta === 'top') {
+      if (normalizedGenero === 'mens' || normalizedGenero === 'hombre') {
+        if (product.work === true) {
+          return ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+        }
+        if (product.work === false) {
+          return ['S', 'M', 'L', 'XL', '2XL'];
+        }
+      }
+      if (normalizedGenero === 'womens' || normalizedGenero === 'mujer') {
+        return ['XS', 'S', 'M', 'L', 'XL'];
+      }
+    }
+
+    // CAT prendas sin silueta definida (comportamiento anterior)
+    if (normalizedGenero === 'mens' || normalizedGenero === 'hombre') {
+      return ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+    }
   }
 
   // Para otros rubros (Prendas), usar tallas de ropa

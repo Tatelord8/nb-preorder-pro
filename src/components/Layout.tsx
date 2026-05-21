@@ -98,6 +98,7 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const handleLogout = async () => {
+    localStorage.removeItem('selectedMarcaId');
     await supabase.auth.signOut();
     navigate("/login");
   };
@@ -155,9 +156,16 @@ const Layout = ({ children }: LayoutProps) => {
 
                 {/* Catálogo - All users */}
                 <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate("/catalog")}
-                    isActive={location.pathname === "/catalog"}
+                  <SidebarMenuButton
+                    onClick={() => {
+                      if (userRole === "cliente") {
+                        const storedMarca = localStorage.getItem('selectedMarcaId');
+                        navigate(storedMarca ? `/catalog?marca=${storedMarca}` : '/brand-select');
+                      } else {
+                        navigate("/catalog");
+                      }
+                    }}
+                    isActive={location.pathname === "/catalog" || location.pathname === "/brand-select"}
                   >
                     <Home className="h-4 w-4" />
                     <span>Catálogo</span>

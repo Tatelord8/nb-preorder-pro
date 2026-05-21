@@ -60,6 +60,22 @@ const Catalog = () => {
     }, { replace: true });
   };
 
+  // Restaurar marca desde localStorage si la URL no la trae
+  useEffect(() => {
+    if (!selectedMarcaId) {
+      const stored = localStorage.getItem('selectedMarcaId');
+      if (stored) {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.set('marca', stored);
+          return next;
+        }, { replace: true });
+      }
+    } else {
+      localStorage.setItem('selectedMarcaId', selectedMarcaId);
+    }
+  }, [selectedMarcaId]);
+
   // Carga el tier una sola vez al montar
   useEffect(() => {
     loadUserTier();
@@ -417,7 +433,7 @@ const Catalog = () => {
             className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
               isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
             }`}
-            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}&page=${currentPage}`)}
+            onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}&page=${currentPage}${selectedMarcaId ? `&marca=${selectedMarcaId}` : ''}`)}
           >
             {/* Check indicator */}
             {isProductInCart(producto.id) && (
