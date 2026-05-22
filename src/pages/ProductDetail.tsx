@@ -84,6 +84,10 @@ const ProductDetail = () => {
     '14': false,
     '15': false
   });
+  const [pantExtraSizes, setPantExtraSizes] = useState<Record<string, boolean>>({
+    '28': false,
+    '42': false,
+  });
   const [userTier, setUserTier] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [lookProductos, setLookProductos] = useState<LookProducto[]>([]);
@@ -96,6 +100,7 @@ const ProductDetail = () => {
     setCantidadCurvas(1);
     setSelectedPredefinedCurve(1);
     setSpecialSizes({ '13': false, '14': false, '15': false });
+    setPantExtraSizes({ '28': false, '42': false });
     setAppliedCurveQuantities({});
     setIsInCart(false);
     setAccessDenied(false);
@@ -178,7 +183,7 @@ const ProductDetail = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
       updateAppliedCurve();
     }
-  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas, specialSizes]);
+  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas, specialSizes, pantExtraSizes]);
 
   // Verificar acceso cuando se carguen tanto el producto como el tier del usuario
   useEffect(() => {
@@ -199,7 +204,21 @@ const ProductDetail = () => {
           finalQuantities[size] = (finalQuantities[size] || 0) + 6;
         }
       });
-      
+
+      // Agregar unidades extra de tallas 28 y 42 para CAT Prendas Pant (Mens)
+      if (
+        producto?.marca_nombre?.toLowerCase() === 'cat' &&
+        producto?.rubro?.toLowerCase() === 'prendas' &&
+        producto?.silueta?.toLowerCase() === 'pant' &&
+        producto?.genero?.toLowerCase() === 'mens'
+      ) {
+        Object.entries(pantExtraSizes).forEach(([size, enabled]) => {
+          if (enabled) {
+            finalQuantities[size] = (finalQuantities[size] || 0) + cantidadCurvas;
+          }
+        });
+      }
+
       setAppliedCurveQuantities(finalQuantities);
     }
   };
@@ -571,6 +590,39 @@ const ProductDetail = () => {
                               />
                               <Label htmlFor={`special-${size}`} className="text-sm">
                                 Talla {size} (+6 unidades)
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {producto?.marca_nombre?.toLowerCase() === 'cat' &&
+                     producto?.rubro?.toLowerCase() === 'prendas' &&
+                     producto?.silueta?.toLowerCase() === 'pant' &&
+                     producto?.genero?.toLowerCase() === 'mens' && (
+                      <div className="space-y-2">
+                        <Label>Tallas Extremas</Label>
+                        <div className="text-sm text-gray-600 mb-2">
+                          Agregar {cantidadCurvas} unidad{cantidadCurvas !== 1 ? 'es' : ''} a las tallas seleccionadas
+                        </div>
+                        <div className="space-y-2">
+                          {(['28', '42'] as const).map((size) => (
+                            <div key={size} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`pant-extra-${size}`}
+                                checked={pantExtraSizes[size]}
+                                onChange={(e) =>
+                                  setPantExtraSizes(prev => ({
+                                    ...prev,
+                                    [size]: e.target.checked,
+                                  }))
+                                }
+                                className="rounded border-gray-300"
+                              />
+                              <Label htmlFor={`pant-extra-${size}`} className="text-sm">
+                                Talla {size} (+{cantidadCurvas} unidad{cantidadCurvas !== 1 ? 'es' : ''})
                               </Label>
                             </div>
                           ))}

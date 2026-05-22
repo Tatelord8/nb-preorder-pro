@@ -406,6 +406,76 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       "13.5": 1,
     },
   },
+  // NEW BALANCE PRENDAS MENS — Opción 1 (Total: 10)
+  {
+    marca: "new balance",
+    genero: "Mens",
+    rubro: "Prendas",
+    opcion: 1,
+    total: 10,
+    tallas: {
+      S: 1,
+      M: 3,
+      L: 3,
+      XL: 2,
+      "2XL": 1,
+    },
+  },
+  // NEW BALANCE PRENDAS WOMENS — Opción 1 (Total: 7)
+  {
+    marca: "new balance",
+    genero: "Womens",
+    rubro: "Prendas",
+    opcion: 1,
+    total: 7,
+    tallas: {
+      XS: 1,
+      S: 2,
+      M: 2,
+      L: 1,
+      XL: 1,
+    },
+  },
+  // NEW BALANCE CALZADOS MENS — Opción 1 (Total: 17)
+  {
+    marca: "new balance",
+    genero: "Mens",
+    rubro: "Calzados",
+    opcion: 1,
+    total: 17,
+    tallas: {
+      "7": 1,
+      "7.5": 1,
+      "8": 2,
+      "8.5": 2,
+      "9": 2,
+      "9.5": 2,
+      "10": 2,
+      "10.5": 2,
+      "11": 1,
+      "11.5": 1,
+      "12": 1,
+    },
+  },
+  // NEW BALANCE CALZADOS WOMENS — Opción 1 (Total: 15)
+  {
+    marca: "new balance",
+    genero: "Womens",
+    rubro: "Calzados",
+    opcion: 1,
+    total: 15,
+    tallas: {
+      "6": 2,
+      "6.5": 2,
+      "7": 2,
+      "7.5": 2,
+      "8": 2,
+      "8.5": 2,
+      "9": 1,
+      "9.5": 1,
+      "10": 1,
+    },
+  },
   // CAT CALZADOS MENS — Opción 1 (Total: 15)
   {
     marca: "cat",
