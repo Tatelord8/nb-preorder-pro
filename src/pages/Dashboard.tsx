@@ -6,12 +6,13 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Users, 
-  Tag, 
-  Package, 
-  ShoppingCart, 
-  TrendingUp, 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Users,
+  Tag,
+  Package,
+  ShoppingCart,
+  TrendingUp,
   DollarSign,
   Activity,
   UserCheck,
@@ -39,8 +40,9 @@ interface SKUData {
   sku: string;
   nombre: string;
   rubro: string;
-  cantidad?: number; // Para SKUs más seleccionados
-  cantidadTotal?: number; // Cantidad total de unidades seleccionadas
+  marca_id?: string | null;
+  cantidad?: number;
+  cantidadTotal?: number;
 }
 
 const Dashboard = () => {
@@ -72,6 +74,9 @@ const Dashboard = () => {
     prendas: []
   });
   const [loadingSKUData, setLoadingSKUData] = useState(true);
+  const [marcas, setMarcas] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [filtroMarcaNoSel, setFiltroMarcaNoSel] = useState('all');
+  const [filtroMarcaMasSel, setFiltroMarcaMasSel] = useState('all');
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -119,7 +124,7 @@ const Dashboard = () => {
         
         const { data: productosPage, error: productosError } = await supabase
           .from("productos")
-          .select("id, sku, nombre, rubro")
+          .select("id, sku, nombre, rubro, marca_id")
           .range(offset, offset + limit - 1);
         
         if (productosError) throw productosError;
@@ -184,7 +189,8 @@ const Dashboard = () => {
           const skuData: SKUData = {
             sku: producto.sku,
             nombre: producto.nombre,
-            rubro: producto.rubro
+            rubro: producto.rubro,
+            marca_id: producto.marca_id ?? null,
           };
 
           if (producto.rubro?.toLowerCase() === 'calzados') {
@@ -222,8 +228,9 @@ const Dashboard = () => {
                   sku: producto.sku,
                   nombre: producto.nombre,
                   rubro: producto.rubro,
+                  marca_id: producto.marca_id ?? null,
                   cantidad: 1,
-                  cantidadTotal: 0 // Se calculará en el siguiente paso
+                  cantidadTotal: 0,
                 });
               }
             }
@@ -251,8 +258,9 @@ const Dashboard = () => {
                         sku: producto.sku,
                         nombre: producto.nombre,
                         rubro: producto.rubro,
+                        marca_id: producto.marca_id ?? null,
                         cantidad: 1,
-                        cantidadTotal: 0
+                        cantidadTotal: 0,
                       });
                     }
                   }
@@ -430,9 +438,15 @@ const Dashboard = () => {
       if (isAuthenticated) {
         loadStats();
         loadSKUData();
+        supabase
+          .from('marcas')
+          .select('id, nombre')
+          .eq('activa', true)
+          .order('nombre')
+          .then(({ data }) => { if (data) setMarcas(data); });
       }
     };
-    
+
     initializeDashboard();
 
     // Escuchar cambios en el carrito para actualizar el contador
@@ -509,70 +523,64 @@ const Dashboard = () => {
     },
   ];
 
+  const applyMarcaFilter = (list: SKUData[], filtroMarca: string) =>
+    filtroMarca === 'all' ? list : list.filter(s => s.marca_id === filtroMarca);
+
+  const noSelCalzados = applyMarcaFilter(skuNoSeleccionados.calzados, filtroMarcaNoSel);
+  const noSelPrendas  = applyMarcaFilter(skuNoSeleccionados.prendas,   filtroMarcaNoSel);
+  const masSelCalzados = applyMarcaFilter(skuMasSeleccionados.calzados, filtroMarcaMasSel);
+  const masSelPrendas  = applyMarcaFilter(skuMasSeleccionados.prendas,  filtroMarcaMasSel);
+
   const exportarSKUsAExcel = (tipo: 'noSeleccionados' | 'masSeleccionados') => {
     const datosExcel: any[] = [];
-    
+    const marcaNombre = tipo === 'noSeleccionados'
+      ? (filtroMarcaNoSel === 'all' ? null : marcas.find(m => m.id === filtroMarcaNoSel)?.nombre)
+      : (filtroMarcaMasSel === 'all' ? null : marcas.find(m => m.id === filtroMarcaMasSel)?.nombre);
+
     if (tipo === 'noSeleccionados') {
-      // Agregar calzados no seleccionados
       datosExcel.push({ 'Rubro': '=== CALZADOS ===', 'SKU': '', 'Nombre': '' });
-      skuNoSeleccionados.calzados.forEach((sku) => {
-        datosExcel.push({
-          'Rubro': 'Calzados',
-          'SKU': sku.sku,
-          'Nombre': sku.nombre
-        });
+      noSelCalzados.forEach((sku) => {
+        datosExcel.push({ 'Rubro': 'Calzados', 'SKU': sku.sku, 'Nombre': sku.nombre });
       });
-      
-      // Agregar prendas no seleccionadas
       datosExcel.push({ 'Rubro': '=== PRENDAS ===', 'SKU': '', 'Nombre': '' });
-      skuNoSeleccionados.prendas.forEach((sku) => {
-        datosExcel.push({
-          'Rubro': 'Prendas',
-          'SKU': sku.sku,
-          'Nombre': sku.nombre
-        });
+      noSelPrendas.forEach((sku) => {
+        datosExcel.push({ 'Rubro': 'Prendas', 'SKU': sku.sku, 'Nombre': sku.nombre });
       });
     } else {
-      // SKUs más seleccionados - Calzados
       datosExcel.push({ 'Rubro': '=== CALZADOS ===', 'SKU': '', 'Nombre': '', 'Selecciones': '', 'Cantidad Total': '' });
-      skuMasSeleccionados.calzados.forEach((sku, index) => {
+      masSelCalzados.forEach((sku, index) => {
         datosExcel.push({
           '#': index + 1,
           'SKU': sku.sku,
           'Nombre': sku.nombre,
           'Rubro': sku.rubro,
           'Selecciones': sku.cantidad || 0,
-          'Cantidad Total': sku.cantidadTotal || 0
+          'Cantidad Total': sku.cantidadTotal || 0,
         });
       });
-      
-      // SKUs más seleccionados - Prendas
       datosExcel.push({ 'Rubro': '=== PRENDAS ===', 'SKU': '', 'Nombre': '', 'Selecciones': '', 'Cantidad Total': '' });
-      skuMasSeleccionados.prendas.forEach((sku, index) => {
+      masSelPrendas.forEach((sku, index) => {
         datosExcel.push({
           '#': index + 1,
           'SKU': sku.sku,
           'Nombre': sku.nombre,
           'Rubro': sku.rubro,
           'Selecciones': sku.cantidad || 0,
-          'Cantidad Total': sku.cantidadTotal || 0
+          'Cantidad Total': sku.cantidadTotal || 0,
         });
       });
     }
-    
-    // Crear el workbook y la hoja
+
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(datosExcel);
-    
-    // Agregar la hoja al workbook
     const nombreHoja = tipo === 'noSeleccionados' ? 'SKUs No Seleccionados' : 'SKUs Más Seleccionados';
     XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
-    
-    // Descargar el archivo
+
     const fecha = new Date().toISOString().split('T')[0];
-    const nombreArchivo = `${tipo === 'noSeleccionados' ? 'SKUs_No_Seleccionados' : 'SKUs_Mas_Seleccionados'}_${fecha}.xlsx`;
+    const sufijo = marcaNombre ? `_${marcaNombre}` : '';
+    const nombreArchivo = `${tipo === 'noSeleccionados' ? 'SKUs_No_Seleccionados' : 'SKUs_Mas_Seleccionados'}${sufijo}_${fecha}.xlsx`;
     XLSX.writeFile(wb, nombreArchivo);
-    
+
     toast({
       title: "Excel generado",
       description: `El archivo ${nombreArchivo} se ha descargado exitosamente`,
@@ -685,8 +693,8 @@ const Dashboard = () => {
                     Productos que no han sido seleccionados por ningún usuario
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => exportarSKUsAExcel('noSeleccionados')}
                   disabled={loadingSKUData}
@@ -694,6 +702,19 @@ const Dashboard = () => {
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Excel
                 </Button>
+              </div>
+              <div className="mt-3">
+                <Select value={filtroMarcaNoSel} onValueChange={setFiltroMarcaNoSel}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Filtrar por marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las marcas</SelectItem>
+                    {marcas.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
@@ -705,49 +726,41 @@ const Dashboard = () => {
                 <Tabs defaultValue="calzados">
                   <TabsList className="w-full">
                     <TabsTrigger value="calzados" className="flex-1">
-                      Calzados ({skuNoSeleccionados.calzados.length})
+                      Calzados ({noSelCalzados.length})
                     </TabsTrigger>
                     <TabsTrigger value="prendas" className="flex-1">
-                      Prendas ({skuNoSeleccionados.prendas.length})
+                      Prendas ({noSelPrendas.length})
                     </TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="calzados" className="mt-4">
-                    {skuNoSeleccionados.calzados.length === 0 ? (
+                    {noSelCalzados.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         Todos los productos de calzados han sido seleccionados
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {skuNoSeleccionados.calzados.map((sku, index) => (
+                        {noSelCalzados.map((sku, index) => (
                           <div key={index} className="p-3 border rounded-lg hover:bg-muted/50">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="font-medium">{sku.sku}</p>
-                                <p className="text-sm text-muted-foreground">{sku.nombre}</p>
-                              </div>
-                            </div>
+                            <p className="font-medium">{sku.sku}</p>
+                            <p className="text-sm text-muted-foreground">{sku.nombre}</p>
                           </div>
                         ))}
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="prendas" className="mt-4">
-                    {skuNoSeleccionados.prendas.length === 0 ? (
+                    {noSelPrendas.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         Todos los productos de prendas han sido seleccionados
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {skuNoSeleccionados.prendas.map((sku, index) => (
+                        {noSelPrendas.map((sku, index) => (
                           <div key={index} className="p-3 border rounded-lg hover:bg-muted/50">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="font-medium">{sku.sku}</p>
-                                <p className="text-sm text-muted-foreground">{sku.nombre}</p>
-                              </div>
-                            </div>
+                            <p className="font-medium">{sku.sku}</p>
+                            <p className="text-sm text-muted-foreground">{sku.nombre}</p>
                           </div>
                         ))}
                       </div>
@@ -771,8 +784,8 @@ const Dashboard = () => {
                     Top 20 productos más seleccionados por los usuarios
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => exportarSKUsAExcel('masSeleccionados')}
                   disabled={loadingSKUData}
@@ -780,6 +793,19 @@ const Dashboard = () => {
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Excel
                 </Button>
+              </div>
+              <div className="mt-3">
+                <Select value={filtroMarcaMasSel} onValueChange={setFiltroMarcaMasSel}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Filtrar por marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las marcas</SelectItem>
+                    {marcas.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
@@ -791,28 +817,26 @@ const Dashboard = () => {
                 <Tabs defaultValue="calzados">
                   <TabsList className="w-full">
                     <TabsTrigger value="calzados" className="flex-1">
-                      Calzados ({skuMasSeleccionados.calzados.length})
+                      Calzados ({masSelCalzados.length})
                     </TabsTrigger>
                     <TabsTrigger value="prendas" className="flex-1">
-                      Prendas ({skuMasSeleccionados.prendas.length})
+                      Prendas ({masSelPrendas.length})
                     </TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="calzados" className="mt-4">
-                    {skuMasSeleccionados.calzados.length === 0 ? (
+                    {masSelCalzados.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         No hay calzados seleccionados
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {skuMasSeleccionados.calzados.map((sku, index) => (
+                        {masSelCalzados.map((sku, index) => (
                           <div key={index} className="p-3 border rounded-lg hover:bg-muted/50">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    #{index + 1}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">#{index + 1}</Badge>
                                   <p className="font-medium">{sku.sku}</p>
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1">{sku.nombre}</p>
@@ -829,22 +853,20 @@ const Dashboard = () => {
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="prendas" className="mt-4">
-                    {skuMasSeleccionados.prendas.length === 0 ? (
+                    {masSelPrendas.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         No hay prendas seleccionadas
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {skuMasSeleccionados.prendas.map((sku, index) => (
+                        {masSelPrendas.map((sku, index) => (
                           <div key={index} className="p-3 border rounded-lg hover:bg-muted/50">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    #{index + 1}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">#{index + 1}</Badge>
                                   <p className="font-medium">{sku.sku}</p>
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1">{sku.nombre}</p>
