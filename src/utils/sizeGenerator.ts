@@ -16,6 +16,7 @@ export interface ProductSizeInfo {
   marca?: string;
   work?: boolean | null;
   silueta?: string | null;
+  subgenero?: string | null;
 }
 
 export type SizeType = 'shoes' | 'clothing';
@@ -24,15 +25,23 @@ export type SizeType = 'shoes' | 'clothing';
  * Genera las tallas disponibles para un producto basado en su rubro y género
  */
 export function generateSizes(product: ProductSizeInfo): string[] {
-  const { rubro, genero, marca } = product;
+  const { rubro, genero, marca, subgenero } = product;
 
   // Normalizar valores para comparación
   const normalizedRubro = rubro?.toLowerCase().trim();
   const normalizedGenero = genero?.toLowerCase().trim();
   const normalizedMarca = marca?.toLowerCase().trim();
+  const normalizedSubgenero = subgenero?.toLowerCase().trim();
 
   // Solo aplicar reglas de calzado si el rubro es "Calzados"
   if (normalizedRubro === 'calzados' || normalizedRubro === 'calzado') {
+    // Unisex con subgénero: rango específico que no coincide con ningún otro género
+    if (normalizedGenero === 'unisex' && normalizedSubgenero === 'womens') {
+      return ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8'];
+    }
+    if (normalizedGenero === 'unisex' && normalizedSubgenero === 'mens') {
+      return ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'];
+    }
     // CAT Womens: tallas 5 a 9 con medios puntos
     if (normalizedMarca === 'cat' && (normalizedGenero === 'womens' || normalizedGenero === 'mujer')) {
       return ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'];

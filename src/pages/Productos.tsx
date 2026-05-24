@@ -71,6 +71,7 @@ interface Producto {
   marca_id?: string;
   work?: boolean | null;
   silueta?: string | null;
+  subgenero?: string | null;
   marcas?: {
     nombre: string;
   };
@@ -146,7 +147,8 @@ const Productos = () => {
     xfd: "",
     fecha_despacho: "",
     work: false as boolean,
-    silueta: ""
+    silueta: "",
+    subgenero: ""
   });
 
   useEffect(() => {
@@ -410,6 +412,9 @@ const Productos = () => {
         productData.silueta = null;
       }
 
+      // subgenero: aplica a todos los Calzados (Mens, Womens, Unisex)
+      productData.subgenero = formData.rubro === 'Calzados' ? (formData.subgenero || null) : null;
+
       console.log("🔄 Creating product in database...", productData);
       
       const { data, error } = await supabase
@@ -476,6 +481,9 @@ const Productos = () => {
         productData.work = null;
         productData.silueta = null;
       }
+
+      // subgenero: aplica a todos los Calzados (Mens, Womens, Unisex)
+      productData.subgenero = formData.rubro === 'Calzados' ? (formData.subgenero || null) : null;
 
       console.log("🔄 Updating product in database...", { id: editingProduct.id, data: productData });
       
@@ -593,7 +601,10 @@ const Productos = () => {
       xfd: producto.xfd || "",
       fecha_despacho: producto.fecha_despacho || "",
       work: producto.work ?? false,
-      silueta: producto.silueta || ""
+      silueta: producto.silueta || "",
+      subgenero: producto.subgenero ||
+        (producto.rubro === 'Calzados' && producto.genero === 'Mens' ? 'Mens' :
+         producto.rubro === 'Calzados' && producto.genero === 'Womens' ? 'Womens' : '')
     });
     setShowEditForm(true);
   };
@@ -615,7 +626,8 @@ const Productos = () => {
       xfd: "",
       fecha_despacho: "",
       work: false,
-      silueta: ""
+      silueta: "",
+      subgenero: ""
     });
   };
 
@@ -710,6 +722,7 @@ const Productos = () => {
             else if (header.includes('línea') || header.includes('linea')) product.línea = value;
             else if (header.includes('rubro')) product.rubro = value;
             else if (header.includes('categoría') || header.includes('categoria')) product.categoría = value;
+            else if (header.includes('subgenero') || header.includes('subgénero')) product.subgenero = value;
             else if (header.includes('género') || header.includes('genero')) product.género = value;
             else if (header.includes('tier')) product.tier = value;
             else if (header.includes('game_plan') || header.includes('game plan')) product.game_plan = value;
@@ -909,6 +922,12 @@ const Productos = () => {
             productData.work = null;
             productData.silueta = null;
           }
+
+          // subgenero: aplica a Calzados cuando el CSV trae Womens o Mens como subgénero
+          const isCalzados = (product.rubro || '').toLowerCase() === 'calzados';
+          const csvSubgenero = product.subgenero?.trim();
+          const validSubgenero = csvSubgenero === 'Womens' || csvSubgenero === 'Mens';
+          productData.subgenero = isCalzados && validSubgenero ? csvSubgenero : null;
           
           console.log(`🔄 Processing product ${product.sku} (upserting)...`);
           
@@ -1299,7 +1318,8 @@ const Productos = () => {
       'XFD',
       'Fecha_Despacho',
       'Work',
-      'Silueta'
+      'Silueta',
+      'Subgenero'
     ];
 
     const sampleData = [
@@ -1319,7 +1339,8 @@ const Productos = () => {
         '2024-03-15',
         '2024-04-01',
         '',
-        ''
+        '',
+        'Womens'
       ],
       [
         'NB002',
@@ -1335,6 +1356,7 @@ const Productos = () => {
         'https://example.com/nb-hoodie.jpg',
         '2024-04-12',
         '2024-04-27',
+        '',
         '',
         ''
       ],
@@ -1354,7 +1376,8 @@ const Productos = () => {
         '2024-03-18',
         '2024-04-03',
         'TRUE',
-        'top'
+        'top',
+        ''
       ]
     ];
 
@@ -2027,7 +2050,11 @@ const Productos = () => {
                   <Label htmlFor="genero">Género *</Label>
                   <Select
                     value={formData.genero}
-                    onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                    onValueChange={(value) => {
+                      const autoSub = formData.rubro === "Calzados" && value === "Mens" ? "Mens"
+                        : formData.rubro === "Calzados" && value === "Womens" ? "Womens" : "";
+                      setFormData({ ...formData, genero: value, subgenero: autoSub });
+                    }}
                     disabled={formData.rubro === "Accesorios"}
                   >
                     <SelectTrigger>
@@ -2045,6 +2072,36 @@ const Productos = () => {
                   </Select>
                 </div>
               </div>
+
+              {formData.rubro === "Calzados" && ["Mens", "Womens", "Unisex"].includes(formData.genero) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="subgenero">Subgénero *</Label>
+                    <Select
+                      value={formData.subgenero}
+                      onValueChange={(value) => setFormData({ ...formData, subgenero: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar subgénero" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.genero === "Unisex" && (
+                          <>
+                            <SelectItem value="Womens">Womens (tallas 4–8)</SelectItem>
+                            <SelectItem value="Mens">Mens (tallas 7–12)</SelectItem>
+                          </>
+                        )}
+                        {formData.genero === "Mens" && (
+                          <SelectItem value="Mens">Mens (tallas 7–12)</SelectItem>
+                        )}
+                        {formData.genero === "Womens" && (
+                          <SelectItem value="Womens">Womens (tallas 6–10)</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -2261,7 +2318,11 @@ const Productos = () => {
                   <Label htmlFor="edit-genero">Género *</Label>
                   <Select
                     value={formData.genero}
-                    onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                    onValueChange={(value) => {
+                      const autoSub = formData.rubro === "Calzados" && value === "Mens" ? "Mens"
+                        : formData.rubro === "Calzados" && value === "Womens" ? "Womens" : "";
+                      setFormData({ ...formData, genero: value, subgenero: autoSub });
+                    }}
                     disabled={formData.rubro === "Accesorios"}
                   >
                     <SelectTrigger>
@@ -2279,6 +2340,36 @@ const Productos = () => {
                   </Select>
                 </div>
               </div>
+
+              {formData.rubro === "Calzados" && ["Mens", "Womens", "Unisex"].includes(formData.genero) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-subgenero">Subgénero *</Label>
+                    <Select
+                      value={formData.subgenero}
+                      onValueChange={(value) => setFormData({ ...formData, subgenero: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar subgénero" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.genero === "Unisex" && (
+                          <>
+                            <SelectItem value="Womens">Womens (tallas 4–8)</SelectItem>
+                            <SelectItem value="Mens">Mens (tallas 7–12)</SelectItem>
+                          </>
+                        )}
+                        {formData.genero === "Mens" && (
+                          <SelectItem value="Mens">Mens (tallas 7–12)</SelectItem>
+                        )}
+                        {formData.genero === "Womens" && (
+                          <SelectItem value="Womens">Womens (tallas 6–10)</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

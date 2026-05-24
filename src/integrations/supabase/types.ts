@@ -236,6 +236,7 @@ export type Database = {
           rubro: string
           silueta: string | null
           sku: string
+          subgenero: string | null
           tier: string | null
           work: boolean | null
           xfd: string | null
@@ -256,6 +257,7 @@ export type Database = {
           rubro: string
           silueta?: string | null
           sku: string
+          subgenero?: string | null
           tier?: string | null
           work?: boolean | null
           xfd?: string | null
@@ -276,6 +278,7 @@ export type Database = {
           rubro?: string
           silueta?: string | null
           sku?: string
+          subgenero?: string | null
           tier?: string | null
           work?: boolean | null
           xfd?: string | null

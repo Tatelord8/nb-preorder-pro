@@ -41,6 +41,7 @@ interface Producto {
   marca_nombre?: string;
   work?: boolean | null;
   silueta?: string | null;
+  subgenero?: string | null;
 }
 
 interface LookProducto {
@@ -168,7 +169,7 @@ const ProductDetail = () => {
   // Cargar curvas predefinidas cuando cambie el género y rubro del producto
   useEffect(() => {
     if (producto?.genero && producto?.rubro) {
-      const curves = getCurvesForGender(producto.genero, producto.rubro, producto.marca_nombre, producto.work, producto.silueta);
+      const curves = getCurvesForGender(producto.genero, producto.rubro, producto.marca_nombre, producto.work, producto.silueta, producto.subgenero);
       setAvailableCurves(curves);
       
       if (curves.length > 0) {
@@ -176,14 +177,14 @@ const ProductDetail = () => {
         updateAppliedCurve();
       }
     }
-  }, [producto?.genero, producto?.rubro]);
+  }, [producto?.genero, producto?.rubro, producto?.subgenero]);
 
   // Actualizar curvas aplicadas cuando cambien los parámetros
   useEffect(() => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
       updateAppliedCurve();
     }
-  }, [producto?.genero, producto?.rubro, selectedPredefinedCurve, cantidadCurvas, specialSizes, pantExtraSizes]);
+  }, [producto?.genero, producto?.rubro, producto?.subgenero, selectedPredefinedCurve, cantidadCurvas, specialSizes, pantExtraSizes]);
 
   // Verificar acceso cuando se carguen tanto el producto como el tier del usuario
   useEffect(() => {
@@ -195,7 +196,7 @@ const ProductDetail = () => {
   // Función para actualizar las curvas aplicadas
   const updateAppliedCurve = () => {
     if (producto?.genero && producto?.rubro && selectedPredefinedCurve && cantidadCurvas > 0) {
-      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas, producto.marca_nombre, producto.work, producto.silueta);
+      const applied = applyCurveToProduct(producto.genero, producto.rubro, selectedPredefinedCurve, cantidadCurvas, producto.marca_nombre, producto.work, producto.silueta, producto.subgenero);
       
       // Agregar tallas especiales si están seleccionadas
       const finalQuantities = { ...applied };
@@ -286,6 +287,7 @@ const ProductDetail = () => {
       look: (productoData as any).look ?? null,
       work: (productoData as any).work ?? null,
       silueta: (productoData as any).silueta ?? null,
+      subgenero: (productoData as any).subgenero ?? null,
     });
   };
 
@@ -501,7 +503,11 @@ const ProductDetail = () => {
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{producto.linea}</Badge>
                 <Badge variant="outline">{producto.categoria}</Badge>
-                <Badge variant="outline">{producto.genero}</Badge>
+                <Badge variant="outline">
+                  {producto.rubro?.toLowerCase() === 'calzados' && producto.subgenero
+                    ? producto.subgenero
+                    : producto.genero}
+                </Badge>
               </div>
               <p className="text-3xl font-bold">USD ${producto.precio_usd}</p>
             </div>
@@ -636,7 +642,7 @@ const ProductDetail = () => {
                     <div className="space-y-2">
                       <Label>Vista previa de cantidades</Label>
                       <div className="space-y-1">
-                        {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero || '').map(({ talla, cantidad }) => (
+                        {sortQuantitiesBySizeOrder(appliedCurveQuantities, producto?.genero?.toLowerCase() === 'unisex' && producto?.subgenero ? 'Unisex' : (producto?.genero || '')).map(({ talla, cantidad }) => (
                           <div key={talla} className="flex justify-between text-sm">
                             <span className="font-medium">{talla}</span>
                             <span className="text-gray-600">{cantidad}</span>

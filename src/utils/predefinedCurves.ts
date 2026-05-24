@@ -12,6 +12,7 @@ export interface PredefinedCurve {
   marca?: string; // undefined = aplica a todas las marcas sin especificación propia
   work?: boolean;
   silueta?: string;
+  subgenero?: string; // solo para Calzados Unisex
 }
 
 export interface CurveOption {
@@ -476,6 +477,48 @@ export const PREDEFINED_CURVES: PredefinedCurve[] = [
       "10": 1,
     },
   },
+  // NEW BALANCE CALZADOS UNISEX WOMENS — Opción 1 (Total: 15)
+  {
+    marca: "new balance",
+    genero: "Unisex",
+    subgenero: "Womens",
+    rubro: "Calzados",
+    opcion: 1,
+    total: 15,
+    tallas: {
+      "4": 2,
+      "4.5": 2,
+      "5": 2,
+      "5.5": 2,
+      "6": 2,
+      "6.5": 2,
+      "7": 1,
+      "7.5": 1,
+      "8": 1,
+    },
+  },
+  // NEW BALANCE CALZADOS UNISEX MENS — Opción 1 (Total: 17)
+  {
+    marca: "new balance",
+    genero: "Unisex",
+    subgenero: "Mens",
+    rubro: "Calzados",
+    opcion: 1,
+    total: 17,
+    tallas: {
+      "7": 1,
+      "7.5": 1,
+      "8": 2,
+      "8.5": 2,
+      "9": 2,
+      "9.5": 2,
+      "10": 2,
+      "10.5": 2,
+      "11": 1,
+      "11.5": 1,
+      "12": 1,
+    },
+  },
   // CAT CALZADOS MENS — Opción 1 (Total: 15)
   {
     marca: "cat",
@@ -678,20 +721,34 @@ export function getCurvesForGender(
   rubro?: string,
   marca?: string,
   work?: boolean | null,
-  silueta?: string | null
+  silueta?: string | null,
+  subgenero?: string | null
 ): CurveOption[] {
   const normalizedMarca = marca?.toLowerCase().trim();
   const normalizedSilueta = silueta?.toLowerCase().trim();
-  const hasWork = work !== undefined && work !== null;
+  const normalizedSubgenero = subgenero?.toLowerCase().trim();
+  const normalizedGenero = genero.toLowerCase();
+  const isUnisex = normalizedGenero === 'unisex';
 
   let curves = PREDEFINED_CURVES.filter((curve) => {
-    if (curve.genero.toLowerCase() !== genero.toLowerCase()) return false;
+    if (curve.genero.toLowerCase() !== normalizedGenero) return false;
     if (rubro && curve.rubro.toLowerCase() !== rubro.toLowerCase()) return false;
+
+    // Filtrar por subgénero: solo aplica a Unisex (tiene curvas específicas por subgénero)
+    if (isUnisex) {
+      if (normalizedSubgenero) {
+        if ((curve.subgenero?.toLowerCase() ?? '') !== normalizedSubgenero) return false;
+      } else {
+        if (curve.subgenero !== undefined) return false;
+      }
+    } else {
+      // Mens/Womens/otros: usar sus curvas regulares (sin subgénero en la definición)
+      if (curve.subgenero !== undefined) return false;
+    }
 
     if (normalizedSilueta) {
       // La curva debe tener la misma silueta
       if (curve.silueta?.toLowerCase() !== normalizedSilueta) return false;
-      // Para "top": también filtrar por work si se proporcionó
       // Si la curva exige un valor de work, verificar que coincida con el producto
       if (curve.work !== undefined && curve.work !== work) return false;
     } else {
@@ -726,19 +783,33 @@ export function getCurve(
   opcion: number,
   marca?: string,
   work?: boolean | null,
-  silueta?: string | null
+  silueta?: string | null,
+  subgenero?: string | null
 ): PredefinedCurve | null {
   const normalizedMarca = marca?.toLowerCase().trim();
   const normalizedSilueta = silueta?.toLowerCase().trim();
-  const hasWork = work !== undefined && work !== null;
+  const normalizedSubgenero = subgenero?.toLowerCase().trim();
+  const normalizedGenero = genero.toLowerCase();
+  const isUnisex = normalizedGenero === 'unisex';
 
   const matches = (curve: PredefinedCurve) => {
-    if (curve.genero.toLowerCase() !== genero.toLowerCase()) return false;
+    if (curve.genero.toLowerCase() !== normalizedGenero) return false;
     if (curve.rubro.toLowerCase() !== rubro.toLowerCase()) return false;
     if (curve.opcion !== opcion) return false;
+
+    // Filtrar por subgénero: solo aplica a Unisex
+    if (isUnisex) {
+      if (normalizedSubgenero) {
+        if ((curve.subgenero?.toLowerCase() ?? '') !== normalizedSubgenero) return false;
+      } else {
+        if (curve.subgenero !== undefined) return false;
+      }
+    } else {
+      if (curve.subgenero !== undefined) return false;
+    }
+
     if (normalizedSilueta) {
       if (curve.silueta?.toLowerCase() !== normalizedSilueta) return false;
-      // Si la curva exige un valor de work, verificar que coincida con el producto
       if (curve.work !== undefined && curve.work !== work) return false;
     } else {
       if (curve.silueta !== undefined || curve.work !== undefined) return false;
@@ -810,9 +881,10 @@ export function applyCurveToProduct(
   numberOfCurves: number = 1,
   marca?: string,
   work?: boolean | null,
-  silueta?: string | null
+  silueta?: string | null,
+  subgenero?: string | null
 ): Record<string, number> {
-  const curve = getCurve(genero, rubro, opcion, marca, work, silueta);
+  const curve = getCurve(genero, rubro, opcion, marca, work, silueta, subgenero);
   if (!curve) return {};
 
   const result: Record<string, number> = {};

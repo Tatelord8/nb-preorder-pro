@@ -43,6 +43,7 @@ interface ProductoDetalle {
   rubro?: string;
   imagen_url?: string;
   marca_nombre?: string;
+  subgenero?: string | null;
 }
 
 const Cart = () => {
@@ -297,6 +298,7 @@ const Cart = () => {
           rubro: 'Calzados',
           genero: producto?.genero || 'Mens',
           marca: producto?.marca_nombre,
+          subgenero: producto?.subgenero,
         });
       } else if (producto?.rubro?.toLowerCase() === 'prendas') {
         if (producto?.genero?.toLowerCase() === 'mens') {
