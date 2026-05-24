@@ -428,13 +428,19 @@ const Catalog = () => {
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {paginatedProductos.map((producto) => (
-          <Card 
-            key={producto.id} 
+          <Card
+            key={producto.id}
             className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative ${
-              isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
+              producto.game_plan ? 'ring-2 ring-gameplan' : isProductInCart(producto.id) ? 'ring-2 ring-green-500' : ''
             }`}
             onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}&page=${currentPage}${selectedMarcaId ? `&marca=${selectedMarcaId}` : ''}`)}
           >
+            {/* Game Plan badge */}
+            {producto.game_plan && (
+              <Badge className="absolute top-2 left-2 z-10 bg-gameplan text-gameplan-foreground">
+                GAME PLAN
+              </Badge>
+            )}
             {/* Check indicator */}
             {isProductInCart(producto.id) && (
               <div className="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1">
@@ -461,11 +467,6 @@ const Catalog = () => {
                   <h3 className="font-semibold text-sm line-clamp-2">{producto.nombre}</h3>
                   <p className="text-xs text-muted-foreground">SKU: {producto.sku}</p>
                 </div>
-                {producto.game_plan && (
-                  <Badge variant="secondary" className="text-xs">
-                    Game Plan
-                  </Badge>
-                )}
               </div>
               
               <div className="space-y-1 mb-4">
