@@ -39,6 +39,8 @@ export class CartSyncService {
   private static readonly SYNC_INTERVAL_MS = 5000; // 5 segundos
   private static lastSnapshotCount = 0;
   private static listeners: Set<(state: SyncState) => void> = new Set();
+  // Incremented whenever clearCart runs, causing any in-flight sync to abort before writing
+  private static clearGeneration = 0;
 
   /**
    * Calcula un hash simple del carrito para detectar cambios
@@ -117,6 +119,11 @@ export class CartSyncService {
       return { success: false, error: 'Sync en progreso' };
     }
 
+    // Snapshot of the generation at the moment this sync starts.
+    // If beginClear() is called while we are mid-sync, the generation will
+    // have changed and we abort before writing anything to Supabase.
+    const syncGeneration = this.clearGeneration;
+
     this.syncInProgress = true;
     this.notifyListeners({ status: 'syncing', lastSyncTime: null, lastError: null, pendingChanges: true });
 
@@ -157,6 +164,14 @@ export class CartSyncService {
         .select('version, items')
         .eq('user_id', userId)
         .single();
+
+      // Abort if a clearCart ran while we were fetching — prevents writing
+      // stale items back to Supabase after clearCart already deleted the row.
+      if (this.clearGeneration !== syncGeneration) {
+        this.syncInProgress = false;
+        this.notifyListeners({ status: 'idle', lastSyncTime: null, lastError: null, pendingChanges: false });
+        return { success: false, error: 'Sync abortado: carrito limpiado durante sync' };
+      }
 
       // Preparar datos para guardar
       const cartData: any = {
@@ -351,6 +366,17 @@ export class CartSyncService {
       lastError: null,
       pendingChanges: false,
     };
+  }
+
+  /**
+   * Debe llamarse al inicio de clearCart.
+   * Incrementa la generación (aborta cualquier sync en vuelo con ítems viejos)
+   * y detiene el intervalo de auto-sync para evitar nuevas escrituras.
+   */
+  static beginClear(): void {
+    this.clearGeneration++;
+    this.lastSyncHash = null;
+    this.stopAutoSync();
   }
 
   /**

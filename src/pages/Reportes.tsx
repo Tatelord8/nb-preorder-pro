@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
-import { 
-  BarChart3, 
-  Download, 
-  Filter, 
-  RefreshCw, 
+import {
+  BarChart3,
+  Download,
+  Filter,
+  RefreshCw,
   TrendingUp,
   Users,
   Package,
@@ -33,6 +33,7 @@ interface FilterOptions {
   vendedor: string;
   cliente: string;
   rubro: string;
+  marca: string;
 }
 
 const Reportes = () => {
@@ -43,10 +44,12 @@ const Reportes = () => {
   const [filters, setFilters] = useState<FilterOptions>({
     vendedor: 'all',
     cliente: 'all',
-    rubro: 'all'
+    rubro: 'all',
+    marca: 'all',
   });
   const [vendedores, setVendedores] = useState<Array<{id: string, nombre: string}>>([]);
   const [clientes, setClientes] = useState<Array<{id: string, nombre: string}>>([]);
+  const [marcas, setMarcas] = useState<Array<{id: string, nombre: string}>>([]);
   const [rubros] = useState(['Calzados', 'Prendas', 'Accesorios']);
 
   useEffect(() => {
@@ -59,45 +62,16 @@ const Reportes = () => {
 
   const loadFilterOptions = async () => {
     try {
-      console.log('🔍 Cargando opciones de filtro...');
-      
-      // Cargar vendedores
-      const { data: vendedoresData, error: vendedoresError } = await supabase
-        .from('vendedores')
-        .select('id, nombre')
-        .order('nombre');
+      const [vendedoresRes, clientesRes, marcasRes] = await Promise.all([
+        supabase.from('vendedores').select('id, nombre').order('nombre'),
+        supabase.from('clientes').select('id, nombre').order('nombre'),
+        supabase.from('marcas').select('id, nombre').eq('activa', true).order('nombre'),
+      ]);
 
-      if (vendedoresError) {
-        console.error('Error cargando vendedores:', vendedoresError);
-        toast({
-          title: "Advertencia",
-          description: "No se pudieron cargar los vendedores",
-          variant: "destructive",
-        });
-      } else {
-        setVendedores(vendedoresData || []);
-        console.log('✅ Vendedores cargados:', vendedoresData?.length || 0);
-      }
-
-      // Cargar clientes
-      const { data: clientesData, error: clientesError } = await supabase
-        .from('clientes')
-        .select('id, nombre')
-        .order('nombre');
-
-      if (clientesError) {
-        console.error('Error cargando clientes:', clientesError);
-        toast({
-          title: "Advertencia",
-          description: "No se pudieron cargar los clientes",
-          variant: "destructive",
-        });
-      } else {
-        setClientes(clientesData || []);
-        console.log('✅ Clientes cargados:', clientesData?.length || 0);
-      }
-    } catch (error) {
-      console.error('Error cargando opciones de filtro:', error);
+      if (!vendedoresRes.error) setVendedores(vendedoresRes.data || []);
+      if (!clientesRes.error) setClientes(clientesRes.data || []);
+      if (!marcasRes.error) setMarcas(marcasRes.data || []);
+    } catch {
       setError('Error cargando opciones de filtro');
     }
   };
@@ -105,11 +79,8 @@ const Reportes = () => {
   const loadReportData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      console.log('🔍 Cargando datos del reporte...');
-      
-      // Construir consulta base
       let pedidosQuery = supabase
         .from('pedidos')
         .select(`
@@ -120,14 +91,14 @@ const Reportes = () => {
           vendedor_id,
           items_pedido(
             cantidad,
-            productos(rubro)
+            subtotal_usd,
+            productos(id, rubro, marca_id)
           ),
           clientes(nombre),
           vendedores(nombre)
         `)
         .eq('estado', 'autorizado');
 
-      // Aplicar filtros
       if (filters.vendedor !== 'all') {
         pedidosQuery = pedidosQuery.eq('vendedor_id', filters.vendedor);
       }
@@ -138,7 +109,6 @@ const Reportes = () => {
       const { data: pedidos, error } = await pedidosQuery;
 
       if (error) {
-        console.error('Error cargando pedidos:', error);
         setError('Error cargando datos del reporte');
         toast({
           title: "Error",
@@ -148,74 +118,70 @@ const Reportes = () => {
         return;
       }
 
-      console.log('✅ Pedidos obtenidos:', pedidos?.length || 0);
+      const hasItemFilters = filters.rubro !== 'all' || filters.marca !== 'all';
 
-      // Procesar datos
       const processedData: ReportData = {
-        totalPedidos: pedidos?.length || 0,
+        totalPedidos: 0,
         totalSKUs: 0,
         cantidadTotal: 0,
         valorTotal: 0,
         pedidosPorRubro: {},
         pedidosPorVendedor: {},
-        pedidosPorCliente: {}
+        pedidosPorCliente: {},
       };
 
       const skusSet = new Set<string>();
-      let cantidadTotal = 0;
-      let valorTotal = 0;
 
       pedidos?.forEach(pedido => {
-        // Sumar valor total
-        valorTotal += pedido.total_usd || 0;
+        const allItems = pedido.items_pedido || [];
 
-        // Contar por vendedor
+        // Filter items by rubro and marca before computing any metrics
+        const filteredItems = allItems.filter((item: any) => {
+          if (!item.productos) return false;
+          const matchRubro = filters.rubro === 'all' || item.productos.rubro === filters.rubro;
+          const matchMarca = filters.marca === 'all' || item.productos.marca_id === filters.marca;
+          return matchRubro && matchMarca;
+        });
+
+        // Skip this pedido entirely if no items match the item-level filters
+        if (hasItemFilters && filteredItems.length === 0) return;
+
+        processedData.totalPedidos++;
+
         const vendedorNombre = pedido.vendedores?.nombre || 'Sin vendedor';
-        processedData.pedidosPorVendedor[vendedorNombre] = 
+        processedData.pedidosPorVendedor[vendedorNombre] =
           (processedData.pedidosPorVendedor[vendedorNombre] || 0) + 1;
 
-        // Contar por cliente
         const clienteNombre = pedido.clientes?.nombre || 'Sin cliente';
-        processedData.pedidosPorCliente[clienteNombre] = 
+        processedData.pedidosPorCliente[clienteNombre] =
           (processedData.pedidosPorCliente[clienteNombre] || 0) + 1;
 
-        // Procesar items del pedido
-        pedido.items_pedido?.forEach((item: any) => {
+        // When filtering by item attributes, compute valor from item subtotals
+        if (hasItemFilters) {
+          filteredItems.forEach((item: any) => {
+            processedData.valorTotal += item.subtotal_usd || 0;
+          });
+        } else {
+          processedData.valorTotal += pedido.total_usd || 0;
+        }
+
+        filteredItems.forEach((item: any) => {
           if (item.productos) {
             const rubro = item.productos.rubro;
             const cantidad = item.cantidad || 0;
-            
-            // Contar por rubro
-            processedData.pedidosPorRubro[rubro] = 
+
+            processedData.pedidosPorRubro[rubro] =
               (processedData.pedidosPorRubro[rubro] || 0) + cantidad;
 
-            // Sumar cantidad total
-            cantidadTotal += cantidad;
-
-            // Agregar SKU único (usando el ID del producto como proxy)
+            processedData.cantidadTotal += cantidad;
             skusSet.add(item.productos.id);
           }
         });
       });
 
-      // Aplicar filtro de rubro si está seleccionado
-      if (filters.rubro !== 'all') {
-        processedData.pedidosPorRubro = {
-          [filters.rubro]: processedData.pedidosPorRubro[filters.rubro] || 0
-        };
-        // Recalcular cantidad total solo para el rubro seleccionado
-        cantidadTotal = processedData.pedidosPorRubro[filters.rubro] || 0;
-      }
-
       processedData.totalSKUs = skusSet.size;
-      processedData.cantidadTotal = cantidadTotal;
-      processedData.valorTotal = valorTotal;
-
       setReportData(processedData);
-      console.log('✅ Datos procesados correctamente');
-
-    } catch (error) {
-      console.error('Error procesando datos del reporte:', error);
+    } catch {
       setError('Error al procesar los datos del reporte');
       toast({
         title: "Error",
@@ -228,170 +194,123 @@ const Reportes = () => {
   };
 
   const handleExportExcel = async () => {
+    if (!reportData) {
+      toast({ title: "Error", description: "No hay datos para exportar", variant: "destructive" });
+      return;
+    }
+
     try {
-      toast({
-        title: "Exportando",
-        description: "Generando archivo Excel...",
-      });
+      toast({ title: "Exportando", description: "Generando archivo Excel..." });
 
-      if (!reportData) {
-        toast({
-          title: "Error",
-          description: "No hay datos para exportar",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Crear archivo Excel con formato específico
       const wb = XLSX.utils.book_new();
 
-      // Reporte Detallado con formato específico
-      if (reportData.totalPedidos > 0) {
-        try {
-          // Obtener pedidos detallados con información de tallas
-          let pedidosQuery = supabase
-            .from('pedidos')
-            .select(`
-              id,
-              total_usd,
-              estado,
-              created_at,
-              cliente_id,
-              vendedor_id,
-              items_pedido(
-                cantidad,
-                subtotal_usd,
-                talles_cantidades,
-                productos(sku, nombre, rubro, precio_usd, fecha_despacho)
-              ),
-              clientes(nombre),
-              vendedores(nombre)
-            `)
-            .eq('estado', 'autorizado');
+      let pedidosQuery = supabase
+        .from('pedidos')
+        .select(`
+          id,
+          total_usd,
+          estado,
+          created_at,
+          cliente_id,
+          vendedor_id,
+          items_pedido(
+            cantidad,
+            subtotal_usd,
+            talles_cantidades,
+            productos(sku, nombre, rubro, precio_usd, fecha_despacho, marca_id)
+          ),
+          clientes(nombre),
+          vendedores(nombre)
+        `)
+        .eq('estado', 'autorizado');
 
-          // Aplicar filtros
-          if (filters.vendedor !== 'all') {
-            pedidosQuery = pedidosQuery.eq('vendedor_id', filters.vendedor);
-          }
-          if (filters.cliente !== 'all') {
-            pedidosQuery = pedidosQuery.eq('cliente_id', filters.cliente);
-          }
-
-          const { data: pedidosDetallados } = await pedidosQuery;
-
-          if (pedidosDetallados && pedidosDetallados.length > 0) {
-            const detalleData = [
-              ['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho']
-            ];
-
-            pedidosDetallados.forEach(pedido => {
-              if (pedido.items_pedido && pedido.items_pedido.length > 0) {
-                pedido.items_pedido.forEach((item: any) => {
-                  const clienteNombre = pedido.clientes?.nombre || 'N/A';
-                  const vendedorNombre = pedido.vendedores?.nombre || 'Sin vendedor';
-                  const sku = item.productos?.sku || 'N/A';
-                  const precio = item.productos?.precio_usd || 0;
-                  const fechaDespacho = item.productos?.fecha_despacho || 'Sin fecha';
-                  
-                  // Procesar talles_cantidades si existe
-                  if (item.talles_cantidades && typeof item.talles_cantidades === 'object') {
-                    Object.entries(item.talles_cantidades).forEach(([talla, cantidad]) => {
-                      if (cantidad && cantidad > 0) {
-                        detalleData.push([
-                          clienteNombre,
-                          vendedorNombre,
-                          sku,
-                          talla,
-                          cantidad,
-                          precio,
-                          fechaDespacho
-                        ]);
-                      }
-                    });
-                  } else {
-                    // Si no hay talles_cantidades, usar la cantidad total
-                    detalleData.push([
-                      clienteNombre,
-                      vendedorNombre,
-                      sku,
-                      'Sin especificar',
-                      item.cantidad || 0,
-                      precio,
-                      fechaDespacho
-                    ]);
-                  }
-                });
-              }
-            });
-
-            const wsDetalle = XLSX.utils.aoa_to_sheet(detalleData);
-            XLSX.utils.book_append_sheet(wb, wsDetalle, 'Reporte');
-          }
-        } catch (error) {
-          console.error('Error obteniendo detalles de pedidos:', error);
-          // Crear hoja vacía si hay error
-          const emptyData = [['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho'], ['Sin datos disponibles', '', '', '', '', '', '']];
-          const wsEmpty = XLSX.utils.aoa_to_sheet(emptyData);
-          XLSX.utils.book_append_sheet(wb, wsEmpty, 'Reporte');
-        }
-      } else {
-        // Crear hoja vacía si no hay pedidos
-        const emptyData = [['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho'], ['Sin datos disponibles', '', '', '', '', '', '']];
-        const wsEmpty = XLSX.utils.aoa_to_sheet(emptyData);
-        XLSX.utils.book_append_sheet(wb, wsEmpty, 'Reporte');
-      }
-
-      // Generar nombre del archivo con fecha y filtros
-      const fecha = new Date().toISOString().split('T')[0];
-      const filtrosTexto = [];
       if (filters.vendedor !== 'all') {
-        const vendedor = vendedores.find(v => v.id === filters.vendedor);
-        filtrosTexto.push(`Vendedor_${vendedor?.nombre || 'Desconocido'}`);
+        pedidosQuery = pedidosQuery.eq('vendedor_id', filters.vendedor);
       }
       if (filters.cliente !== 'all') {
-        const cliente = clientes.find(c => c.id === filters.cliente);
-        filtrosTexto.push(`Cliente_${cliente?.nombre || 'Desconocido'}`);
+        pedidosQuery = pedidosQuery.eq('cliente_id', filters.cliente);
+      }
+
+      const { data: pedidosDetallados } = await pedidosQuery;
+
+      const hasItemFilters = filters.rubro !== 'all' || filters.marca !== 'all';
+
+      const detalleData: any[][] = [
+        ['Cliente', 'Vendedor', 'SKU', 'Talla', 'Cantidad', 'Precio', 'Fecha Despacho']
+      ];
+
+      pedidosDetallados?.forEach(pedido => {
+        const items = (pedido.items_pedido || []).filter((item: any) => {
+          if (!item.productos) return false;
+          const matchRubro = filters.rubro === 'all' || item.productos.rubro === filters.rubro;
+          const matchMarca = filters.marca === 'all' || item.productos.marca_id === filters.marca;
+          return matchRubro && matchMarca;
+        });
+
+        if (hasItemFilters && items.length === 0) return;
+
+        const clienteNombre = pedido.clientes?.nombre || 'N/A';
+        const vendedorNombre = pedido.vendedores?.nombre || 'Sin vendedor';
+
+        items.forEach((item: any) => {
+          const sku = item.productos?.sku || 'N/A';
+          const precio = item.productos?.precio_usd || 0;
+          const fechaDespacho = item.productos?.fecha_despacho || 'Sin fecha';
+
+          if (item.talles_cantidades && typeof item.talles_cantidades === 'object') {
+            Object.entries(item.talles_cantidades).forEach(([talla, cantidad]) => {
+              if (cantidad && (cantidad as number) > 0) {
+                detalleData.push([clienteNombre, vendedorNombre, sku, talla, cantidad, precio, fechaDespacho]);
+              }
+            });
+          } else {
+            detalleData.push([clienteNombre, vendedorNombre, sku, 'Sin especificar', item.cantidad || 0, precio, fechaDespacho]);
+          }
+        });
+      });
+
+      if (detalleData.length === 1) {
+        detalleData.push(['Sin datos disponibles', '', '', '', '', '', '']);
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(detalleData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+
+      const fecha = new Date().toISOString().split('T')[0];
+      const filtrosTexto: string[] = [];
+      if (filters.vendedor !== 'all') {
+        const v = vendedores.find(x => x.id === filters.vendedor);
+        filtrosTexto.push(`Vendedor_${v?.nombre || 'Desconocido'}`);
+      }
+      if (filters.cliente !== 'all') {
+        const c = clientes.find(x => x.id === filters.cliente);
+        filtrosTexto.push(`Cliente_${c?.nombre || 'Desconocido'}`);
+      }
+      if (filters.marca !== 'all') {
+        const m = marcas.find(x => x.id === filters.marca);
+        filtrosTexto.push(`Marca_${m?.nombre || 'Desconocida'}`);
       }
       if (filters.rubro !== 'all') {
         filtrosTexto.push(`Rubro_${filters.rubro}`);
       }
-      
-      const nombreArchivo = filtrosTexto.length > 0 
+
+      const nombreArchivo = filtrosTexto.length > 0
         ? `Reporte_Ventas_${filtrosTexto.join('_')}_${fecha}.xlsx`
         : `Reporte_Ventas_Completo_${fecha}.xlsx`;
 
-      // Descargar archivo
       XLSX.writeFile(wb, nombreArchivo);
-
-      toast({
-        title: "Éxito",
-        description: `Reporte exportado como ${nombreArchivo}`,
-      });
-
-    } catch (error) {
-      console.error('Error exportando reporte:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo exportar el reporte",
-        variant: "destructive",
-      });
+      toast({ title: "Éxito", description: `Reporte exportado como ${nombreArchivo}` });
+    } catch {
+      toast({ title: "Error", description: "No se pudo exportar el reporte", variant: "destructive" });
     }
   };
 
   const handleFilterChange = (filterType: keyof FilterOptions, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
+    setFilters(prev => ({ ...prev, [filterType]: value }));
   };
 
   const clearFilters = () => {
-    setFilters({
-      vendedor: 'all',
-      cliente: 'all',
-      rubro: 'all'
-    });
+    setFilters({ vendedor: 'all', cliente: 'all', rubro: 'all', marca: 'all' });
   };
 
   return (
@@ -403,20 +322,11 @@ const Reportes = () => {
             <p className="text-muted-foreground">Genera reportes detallados de ventas con filtros personalizados</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={loadReportData}
-              disabled={loading}
-              variant="outline"
-              size="sm"
-            >
+            <Button onClick={loadReportData} disabled={loading} variant="outline" size="sm">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualizar
             </Button>
-            <Button
-              onClick={handleExportExcel}
-              disabled={loading || !reportData}
-              size="sm"
-            >
+            <Button onClick={handleExportExcel} disabled={loading || !reportData} size="sm">
               <Download className="h-4 w-4 mr-2" />
               Exportar Excel
             </Button>
@@ -425,7 +335,6 @@ const Reportes = () => {
       </div>
 
       <div className="flex-1 p-6">
-        {/* Mostrar error si existe */}
         {error && (
           <Card className="mb-6 border-destructive">
             <CardContent className="p-4">
@@ -449,22 +358,17 @@ const Reportes = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Vendedor</label>
-                <Select
-                  value={filters.vendedor}
-                  onValueChange={(value) => handleFilterChange('vendedor', value)}
-                >
+                <Select value={filters.vendedor} onValueChange={(v) => handleFilterChange('vendedor', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar vendedor" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos los vendedores</SelectItem>
-                    {vendedores.map((vendedor) => (
-                      <SelectItem key={vendedor.id} value={vendedor.id}>
-                        {vendedor.nombre}
-                      </SelectItem>
+                    {vendedores.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.nombre}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -472,50 +376,51 @@ const Reportes = () => {
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Cliente</label>
-                <Select
-                  value={filters.cliente}
-                  onValueChange={(value) => handleFilterChange('cliente', value)}
-                >
+                <Select value={filters.cliente} onValueChange={(v) => handleFilterChange('cliente', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar cliente" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos los clientes</SelectItem>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nombre}
-                      </SelectItem>
+                    {clientes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Rubro</label>
-                <Select
-                  value={filters.rubro}
-                  onValueChange={(value) => handleFilterChange('rubro', value)}
-                >
+                <label className="text-sm font-medium mb-2 block">Marca</label>
+                <Select value={filters.marca} onValueChange={(v) => handleFilterChange('marca', v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar rubro" />
+                    <SelectValue placeholder="Seleccionar marca" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos los rubros</SelectItem>
-                    {rubros.map((rubro) => (
-                      <SelectItem key={rubro} value={rubro}>
-                        {rubro}
-                      </SelectItem>
+                    <SelectItem value="all">Todas las marcas</SelectItem>
+                    {marcas.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Categoría</label>
+                <Select value={filters.rubro} onValueChange={(v) => handleFilterChange('rubro', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {rubros.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-end">
-                <Button
-                  onClick={clearFilters}
-                  variant="outline"
-                  className="w-full"
-                >
+                <Button onClick={clearFilters} variant="outline" className="w-full">
                   Limpiar Filtros
                 </Button>
               </div>
@@ -579,12 +484,11 @@ const Reportes = () => {
         {/* Detalles por Categoría */}
         {reportData && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Por Rubro */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Por Rubro
+                  Por Categoría
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -604,7 +508,6 @@ const Reportes = () => {
               </CardContent>
             </Card>
 
-            {/* Por Vendedor */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -629,7 +532,6 @@ const Reportes = () => {
               </CardContent>
             </Card>
 
-            {/* Por Cliente */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -656,7 +558,6 @@ const Reportes = () => {
           </div>
         )}
 
-        {/* Estado de carga */}
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
@@ -666,7 +567,6 @@ const Reportes = () => {
           </div>
         )}
 
-        {/* Estado vacío */}
         {!loading && !reportData && !error && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">

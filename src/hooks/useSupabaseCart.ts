@@ -273,11 +273,24 @@ export function useSupabaseCart(): UseSupabaseCartReturn {
         throw new Error('No hay sesión activa');
       }
 
+      // Stop the auto-sync interval and invalidate any in-flight sync that
+      // captured stale items — must happen BEFORE clearing storage so that a
+      // concurrent sync cannot write old data back to Supabase after we delete.
+      CartSyncService.beginClear();
+
       // Limpiar localStorage
       CartStorageService.clearCart(currentUserId);
 
-      // Limpiar Supabase
-      await supabase.from('carritos_pendientes').delete().eq('user_id', currentUserId);
+      // Limpiar Supabase (with error checking)
+      const { error: deleteError } = await supabase
+        .from('carritos_pendientes')
+        .delete()
+        .eq('user_id', currentUserId);
+
+      if (deleteError) {
+        console.error('❌ Error borrando carrito de Supabase:', deleteError);
+        // Continue anyway — localStorage is already cleared, which is the source of truth.
+      }
 
       // Actualizar estado local
       setItems([]);
