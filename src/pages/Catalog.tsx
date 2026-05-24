@@ -472,9 +472,7 @@ const Catalog = () => {
                 <p className="text-sm text-muted-foreground">
                   <span className="font-medium">Línea:</span> {producto.linea}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Género:</span> {producto.genero}
-                </p>
+
                 <p className="text-sm text-muted-foreground">
                   <span className="font-medium">Categoría:</span> {producto.categoria}
                 </p>
