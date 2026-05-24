@@ -27,6 +27,7 @@ interface Producto {
   categoria: string;
   genero: string;
   game_plan: boolean;
+  look?: number | null;
   imagen_url: string | null;
   rubro?: string;
   tier?: string;
@@ -435,12 +436,19 @@ const Catalog = () => {
             }`}
             onClick={() => navigate(`/product/${producto.id}?rubro=${selectedRubro}&page=${currentPage}${selectedMarcaId ? `&marca=${selectedMarcaId}` : ''}`)}
           >
-            {/* Game Plan badge */}
-            {producto.game_plan && (
-              <Badge className="absolute top-2 left-2 z-10 bg-gameplan text-gameplan-foreground">
-                GAME PLAN
-              </Badge>
-            )}
+            {/* Badges: Game Plan + Key Look apilados en columna */}
+            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+              {producto.game_plan && (
+                <Badge className="bg-gameplan text-gameplan-foreground">
+                  GAME PLAN
+                </Badge>
+              )}
+              {producto.look != null && (
+                <Badge className="bg-primary text-primary-foreground">
+                  KEY LOOK
+                </Badge>
+              )}
+            </div>
             {/* Check indicator */}
             {isProductInCart(producto.id) && (
               <div className="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1">
