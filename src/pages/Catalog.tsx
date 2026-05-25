@@ -280,10 +280,16 @@ const Catalog = () => {
     });
   };
 
-  const filteredProductos = productos.filter(producto =>
-    producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductos = productos.filter(producto => {
+    const term = searchTerm.toLowerCase();
+    return (
+      producto.nombre.toLowerCase().includes(term) ||
+      producto.sku.toLowerCase().includes(term) ||
+      (producto.linea?.toLowerCase() ?? '').includes(term) ||
+      (producto.categoria?.toLowerCase() ?? '').includes(term) ||
+      (producto.genero?.toLowerCase() ?? '').includes(term)
+    );
+  });
 
   // Paginación de productos filtrados
   const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
