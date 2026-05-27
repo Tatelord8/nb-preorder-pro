@@ -15,6 +15,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSupabaseCart } from "@/hooks/useSupabaseCart";
@@ -46,6 +62,13 @@ interface ProductoDetalle {
   subgenero?: string | null;
 }
 
+interface ClienteOption {
+  id: string;
+  nombre: string;
+  tier: string;
+  vendedor_id: string | null;
+}
+
 const Cart = () => {
   const navigate = useNavigate();
   const {
@@ -61,10 +84,15 @@ const Cart = () => {
   } = useSupabaseCart();
   const [productos, setProductos] = useState<Record<string, ProductoDetalle>>({});
   const [clienteInfo, setClienteInfo] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<number | null>(null);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
+  const [showClientSelectDialog, setShowClientSelectDialog] = useState(false);
+  const [clientes, setClientes] = useState<ClienteOption[]>([]);
+  const [selectedClienteId, setSelectedClienteId] = useState<string>("");
+  const [loadingClientes, setLoadingClientes] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,21 +110,23 @@ const Cart = () => {
       }
 
       // Load client info
-      const { data: userRole } = await supabase
+      const { data: roleData } = await supabase
         .from("user_roles")
         .select("nombre, role, cliente_id")
         .eq("user_id", session.user.id)
         .single();
 
-      if (userRole?.cliente_id) {
+      setUserRole(roleData?.role || null);
+
+      if (roleData?.cliente_id) {
         const { data: clienteData } = await supabase
           .from("clientes")
           .select("nombre, tier, vendedor_id")
-          .eq("id", userRole.cliente_id)
+          .eq("id", roleData.cliente_id)
           .single();
 
         setClienteInfo({
-          ...userRole,
+          ...roleData,
           clientes: clienteData
         });
       }
@@ -141,7 +171,9 @@ const Cart = () => {
     return cartItems.reduce((sum, item) => sum + calculateSubtotal(item), 0);
   };
 
-  const handleFinalizarPedido = async () => {
+  const isAdminOrSuperadmin = userRole === "superadmin" || userRole === "admin";
+
+  const handleFinalizarPedidoClick = async () => {
     if (cartItems.length === 0) {
       toast({
         title: "Error",
@@ -151,6 +183,39 @@ const Cart = () => {
       return;
     }
 
+    // Si es admin/superadmin sin cliente asignado, pedir que seleccione un cliente
+    if (isAdminOrSuperadmin && !clienteInfo?.cliente_id) {
+      setLoadingClientes(true);
+      setShowClientSelectDialog(true);
+      try {
+        const { data } = await supabase
+          .from("clientes")
+          .select("id, nombre, tier, vendedor_id")
+          .order("nombre");
+        setClientes((data as ClienteOption[]) || []);
+      } catch {
+        toast({ title: "Error", description: "No se pudo cargar la lista de clientes.", variant: "destructive" });
+        setShowClientSelectDialog(false);
+      } finally {
+        setLoadingClientes(false);
+      }
+      return;
+    }
+
+    await crearPedido(clienteInfo?.cliente_id || null, clienteInfo?.clientes?.vendedor_id || null);
+  };
+
+  const handleConfirmarClienteYFinalizar = async () => {
+    if (!selectedClienteId) {
+      toast({ title: "Error", description: "Debe seleccionar un cliente.", variant: "destructive" });
+      return;
+    }
+    const cliente = clientes.find(c => c.id === selectedClienteId);
+    setShowClientSelectDialog(false);
+    await crearPedido(selectedClienteId, cliente?.vendedor_id || null);
+  };
+
+  const crearPedido = async (clienteIdParam: string | null, vendedorIdParam: string | null) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -159,8 +224,8 @@ const Cart = () => {
       const { data: pedido, error: pedidoError } = await supabase
         .from("pedidos")
         .insert({
-          cliente_id: clienteInfo?.cliente_id || session.user.id,
-          vendedor_id: clienteInfo?.clientes?.vendedor_id || null,
+          cliente_id: clienteIdParam,
+          vendedor_id: vendedorIdParam,
           estado: "pendiente",
           total_usd: calculateTotal(),
         })
@@ -170,24 +235,14 @@ const Cart = () => {
       if (pedidoError) throw pedidoError;
 
       // Create order items
-      const itemsToInsert = cartItems.map((item) => {
-        console.log('🔍 Debug itemsToInsert - item.talles:', {
-          productoId: item.productoId,
-          itemTalles: item.talles,
-          tallesKeys: Object.keys(item.talles || {}),
-          tallesValues: Object.values(item.talles || {}),
-          cantidadCurvas: item.cantidadCurvas
-        });
-        
-        return {
-          pedido_id: pedido.id,
-          producto_id: item.productoId,
-          cantidad: calculateTotalQuantity(item.talles),
-          precio_unitario: productos[item.productoId]?.precio_usd || 0,
-          subtotal_usd: calculateSubtotal(item),
-          talles_cantidades: item.talles,
-        };
-      });
+      const itemsToInsert = cartItems.map((item) => ({
+        pedido_id: pedido.id,
+        producto_id: item.productoId,
+        cantidad: calculateTotalQuantity(item.talles),
+        precio_unitario: productos[item.productoId]?.precio_usd || 0,
+        subtotal_usd: calculateSubtotal(item),
+        talles_cantidades: item.talles,
+      }));
 
       const { error: itemsError } = await supabase
         .from("items_pedido")
@@ -195,15 +250,12 @@ const Cart = () => {
 
       if (itemsError) throw itemsError;
 
-      // Generate Excel using the data we just saved
       generateExcel(pedido.id, itemsToInsert);
-
-      // Clear cart
       await clearCart();
 
       toast({
         title: "Pedido creado",
-        description: "Tu pedido ha sido creado exitosamente.",
+        description: "El pedido ha sido creado exitosamente.",
       });
 
       navigate("/pedidos");
@@ -532,7 +584,7 @@ const Cart = () => {
                 
                 <div className="flex gap-3">
                   <Button
-                    onClick={handleFinalizarPedido}
+                    onClick={handleFinalizarPedidoClick}
                     className="flex-1"
                     size="lg"
                   >
@@ -598,6 +650,46 @@ const Cart = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de selección de cliente para admin/superadmin */}
+      <Dialog open={showClientSelectDialog} onOpenChange={setShowClientSelectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seleccionar cliente</DialogTitle>
+            <DialogDescription>
+              Selecciona el cliente para el cual se generará este pedido.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="cliente-select">Cliente</Label>
+            {loadingClientes ? (
+              <p className="text-sm text-muted-foreground">Cargando clientes...</p>
+            ) : (
+              <Select value={selectedClienteId} onValueChange={setSelectedClienteId}>
+                <SelectTrigger id="cliente-select">
+                  <SelectValue placeholder="Selecciona un cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nombre} — Tier {c.tier}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClientSelectDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmarClienteYFinalizar} disabled={!selectedClienteId || loadingClientes}>
+              <Download className="h-4 w-4 mr-2" />
+              Finalizar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
