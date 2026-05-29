@@ -130,6 +130,16 @@ const Productos = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+
+  // Eliminación masiva por CSV
+  const [deleteCSVFile, setDeleteCSVFile] = useState<File | null>(null);
+  const [deletePreview, setDeletePreview] = useState<{
+    found: Array<{ id: string; sku: string; nombre: string; rubro: string }>;
+    notFound: string[];
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteResults, setDeleteResults] = useState<{ deleted: number; errors: string[] } | null>(null);
+  const deleteFileInputRef = useRef<HTMLInputElement>(null);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [formData, setFormData] = useState({
     sku: "",
@@ -983,6 +993,85 @@ const Productos = () => {
     }
   };
 
+  const parseDeleteCSV = async (file: File) => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) {
+      toast({ title: 'Archivo inválido', description: 'El CSV debe tener encabezado y al menos un SKU.', variant: 'destructive' });
+      return;
+    }
+    const separator = detectCSVSeparator(lines[0]);
+    const headers = parseCSVLine(lines[0], separator).map(h => h.trim().toLowerCase());
+    const skuColIndex = headers.findIndex(h => h.includes('sku'));
+    if (skuColIndex === -1) {
+      toast({ title: 'Columna SKU no encontrada', description: 'El archivo debe tener una columna llamada "SKU".', variant: 'destructive' });
+      return;
+    }
+    const skus = lines.slice(1)
+      .map(line => parseCSVLine(line, separator)[skuColIndex]?.trim())
+      .filter(Boolean) as string[];
+
+    const found = productos
+      .filter(p => skus.includes(p.sku))
+      .map(p => ({ id: p.id, sku: p.sku, nombre: p.nombre, rubro: p.rubro || '' }));
+    const foundSkus = new Set(found.map(p => p.sku));
+    const notFound = skus.filter(s => !foundSkus.has(s));
+    setDeletePreview({ found, notFound });
+  };
+
+  const handleDeleteCSVSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDeleteCSVFile(file);
+    setDeletePreview(null);
+    setDeleteResults(null);
+    await parseDeleteCSV(file);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!deletePreview || deletePreview.found.length === 0) return;
+    setIsDeleting(true);
+    const errors: string[] = [];
+    let deleted = 0;
+    const ids = deletePreview.found.map(p => p.id);
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { error } = await supabase.from('productos').delete().in('id', batch);
+      if (error) {
+        errors.push(`Lote ${Math.floor(i / 100) + 1}: ${error.message}`);
+      } else {
+        deleted += batch.length;
+      }
+    }
+    setDeleteResults({ deleted, errors });
+    setIsDeleting(false);
+    if (deleted > 0) {
+      toast({ title: `${deleted} productos eliminados`, description: 'Los SKUs del CSV fueron eliminados del catálogo.' });
+      loadProductos();
+      setDeletePreview(null);
+      setDeleteCSVFile(null);
+      if (deleteFileInputRef.current) deleteFileInputRef.current.value = '';
+    }
+  };
+
+  const clearDeleteCSV = () => {
+    setDeleteCSVFile(null);
+    setDeletePreview(null);
+    setDeleteResults(null);
+    if (deleteFileInputRef.current) deleteFileInputRef.current.value = '';
+  };
+
+  const downloadDeleteTemplate = () => {
+    const csv = 'SKU\nNB001\nNB002\nCAT003';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla-eliminacion.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredProductos = productos.filter(producto => {
     const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          producto.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1462,6 +1551,10 @@ const Productos = () => {
             <TabsTrigger value="imagenes">
               <ImageIcon className="h-4 w-4 mr-2" />
               Imágenes
+            </TabsTrigger>
+            <TabsTrigger value="eliminacion-masiva">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminación Masiva
             </TabsTrigger>
           </TabsList>
 
@@ -1948,6 +2041,155 @@ const Productos = () => {
                 </div>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="eliminacion-masiva">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-2">Eliminación Masiva por CSV</h2>
+              <p className="text-muted-foreground mb-6">
+                Sube un CSV con una columna <strong>SKU</strong>. Solo se eliminarán exactamente los productos cuyos SKUs estén en el archivo — ninguno más.
+              </p>
+
+              {!deleteCSVFile ? (
+                <div
+                  className="border-2 border-dashed border-destructive/30 rounded-lg p-8 text-center hover:border-destructive/60 transition-colors cursor-pointer"
+                  onClick={() => deleteFileInputRef.current?.click()}
+                >
+                  <Trash2 className="h-12 w-12 text-destructive/50 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Seleccionar CSV de SKUs a eliminar</h3>
+                  <p className="text-muted-foreground mb-4">El archivo debe tener una columna "SKU" con los códigos a eliminar</p>
+                  <Button variant="destructive" type="button">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Seleccionar Archivo
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-4">Formato: .csv</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-8 w-8 text-destructive" />
+                      <div>
+                        <p className="font-medium">{deleteCSVFile.name}</p>
+                        <p className="text-sm text-muted-foreground">{(deleteCSVFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={clearDeleteCSV}>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Quitar
+                    </Button>
+                  </div>
+
+                  {deletePreview && (
+                    <div className="space-y-4">
+                      {deletePreview.found.length > 0 && (
+                        <div className="border border-destructive/30 rounded-lg p-4 bg-destructive/5">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Trash2 className="h-5 w-5 text-destructive" />
+                            <span className="font-semibold text-destructive">
+                              {deletePreview.found.length} productos encontrados para eliminar
+                            </span>
+                          </div>
+                          <div className="max-h-52 overflow-y-auto space-y-1">
+                            {deletePreview.found.map((p) => (
+                              <div key={p.id} className="flex items-center gap-2 text-sm p-1.5 bg-background rounded">
+                                <span className="font-mono text-xs text-muted-foreground w-28 shrink-0">{p.sku}</span>
+                                <span className="flex-1 truncate">{p.nombre}</span>
+                                <Badge variant="outline" className="text-xs shrink-0">{p.rubro}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {deletePreview.notFound.length > 0 && (
+                        <div className="border border-yellow-300 rounded-lg p-4 bg-yellow-50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                            <span className="font-semibold text-yellow-700 text-sm">
+                              {deletePreview.notFound.length} SKUs del CSV no existen en el catálogo (se ignorarán)
+                            </span>
+                          </div>
+                          <p className="text-xs text-yellow-600 font-mono break-all">
+                            {deletePreview.notFound.join(', ')}
+                          </p>
+                        </div>
+                      )}
+
+                      {deletePreview.found.length === 0 && deletePreview.notFound.length > 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Package className="h-10 w-10 mx-auto mb-3" />
+                          <p>Ninguno de los SKUs del archivo existe en el catálogo.</p>
+                        </div>
+                      )}
+
+                      {deleteResults && (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="font-medium text-green-700">
+                            {deleteResults.deleted} productos eliminados exitosamente
+                          </span>
+                        </div>
+                      )}
+
+                      {deletePreview.found.length > 0 && !deleteResults && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" className="w-full" disabled={isDeleting}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {isDeleting
+                                ? 'Eliminando...'
+                                : `Confirmar eliminación de ${deletePreview.found.length} productos`}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Confirmar eliminación masiva?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción eliminará permanentemente{' '}
+                                <strong>{deletePreview.found.length} productos</strong> del catálogo.
+                                Esta operación no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={handleBulkDelete}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Eliminar {deletePreview.found.length} productos
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <input
+                ref={deleteFileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleDeleteCSVSelect}
+                className="hidden"
+              />
+
+              <div className="mt-6 p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-1">Formato del CSV</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Una columna <code className="bg-background px-1 rounded">SKU</code>, un código por fila:
+                </p>
+                <div className="font-mono text-xs bg-background border rounded p-2 mb-3">
+                  SKU<br />NB001<br />NB002<br />CAT003
+                </div>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={downloadDeleteTemplate}>
+                  <Download className="h-3 w-3 mr-1" />
+                  Descargar plantilla de ejemplo
+                </Button>
+              </div>
+            </Card>
           </TabsContent>
         </Tabs>
 
