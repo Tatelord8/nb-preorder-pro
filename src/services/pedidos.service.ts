@@ -142,7 +142,7 @@ export class PedidosService {
           *,
           items_pedido(
             *,
-            productos(id, sku, nombre, rubro, precio_usd)
+            productos(id, sku, nombre, rubro, genero, precio_usd, imagen_url, marca_id)
           ),
           clientes(id, nombre, tier),
           vendedores(id, nombre)
@@ -243,7 +243,7 @@ export class PedidosService {
           *,
           items_pedido(
             *,
-            productos(id, sku, nombre, rubro, precio_usd)
+            productos(id, sku, nombre, rubro, genero, precio_usd, imagen_url, marca_id)
           ),
           clientes(id, nombre, tier),
           vendedores(id, nombre)

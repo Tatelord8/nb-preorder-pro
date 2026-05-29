@@ -14,8 +14,8 @@ const Login = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: "superadmin@preventa.com",
-    password: "admin123"
+    email: "",
+    password: ""
   });
 
   const createSuperadmin = async () => {
@@ -211,7 +211,7 @@ const Login = () => {
               <p className="text-muted-foreground">Optima S.A</p>
             </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -219,7 +219,8 @@ const Login = () => {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="superadmin@preventa.com"
+              placeholder="correo@ejemplo.com"
+              autoComplete="off"
               required
             />
           </div>
@@ -231,7 +232,8 @@ const Login = () => {
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="admin123"
+              placeholder="••••••••"
+              autoComplete="new-password"
               required
             />
           </div>

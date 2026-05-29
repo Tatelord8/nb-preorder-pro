@@ -40,7 +40,9 @@ import {
   Settings,
   ChevronDown,
   BarChart3,
-  ShieldCheck
+  ShieldCheck,
+  ClipboardList,
+  Layers
 } from "lucide-react";
 
 interface LayoutProps {
@@ -216,6 +218,32 @@ const Layout = ({ children }: LayoutProps) => {
                   </SidebarMenuItem>
                 )}
 
+                {/* Gestión de Pedidos - Solo Superadmin */}
+                {userRole === "superadmin" && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => navigate("/gestion-pedidos")}
+                      isActive={location.pathname === "/gestion-pedidos"}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      <span>Gestión Pedidos</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
+                {/* Gestión de Colección - Solo Superadmin */}
+                {userRole === "superadmin" && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => navigate("/gestion-coleccion")}
+                      isActive={location.pathname === "/gestion-coleccion"}
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>Colección</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
                 {/* Pedidos - All users */}
                 <SidebarMenuItem>
                   <SidebarMenuButton 
@@ -281,7 +309,8 @@ const Layout = ({ children }: LayoutProps) => {
                          location.pathname === "/clientes" ? "Clientes" :
                          location.pathname === "/autorizacion" ? "Autorización" :
                          location.pathname === "/pedidos" ? "Pedidos" :
-                         location.pathname === "/reportes" ? "Reportes" : "Sistema"}
+                         location.pathname === "/reportes" ? "Reportes" :
+                         location.pathname === "/gestion-coleccion" ? "Colección" : "Sistema"}
                       </p>
                     </div>
               </div>

@@ -52,7 +52,7 @@ export function useCarritos() {
             if (item.productoId && !productosInfo.has(item.productoId)) {
               const { data: producto } = await supabase
                 .from("productos")
-                .select("id, sku, nombre, rubro, precio_usd, xfd, fecha_despacho")
+                .select("id, sku, nombre, rubro, precio_usd, imagen_url, marca_id, xfd, fecha_despacho")
                 .eq("id", item.productoId)
                 .single();
 
@@ -87,6 +87,8 @@ export function useCarritos() {
                 sku: productoInfo.sku,
                 nombre: productoInfo.nombre,
                 rubro: productoInfo.rubro,
+                imagen_url: productoInfo.imagen_url,
+                marca_id: productoInfo.marca_id,
                 xfd: productoInfo.xfd,
                 fecha_despacho: productoInfo.fecha_despacho
               } : undefined

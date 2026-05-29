@@ -20,6 +20,8 @@ import Clientes from "./pages/Clientes";
 import Pedidos from "./pages/Pedidos";
 import Reportes from "./pages/Reportes";
 import Autorizacion from "./pages/Autorizacion";
+import GestionPedidos from "./pages/GestionPedidos";
+import GestionColeccion from "./pages/GestionColeccion";
 import Setup from "./pages/Setup";
 import ManualSetup from "./pages/ManualSetup";
 import Login from "./pages/Login";
@@ -131,6 +133,20 @@ const App = () => (
             <SidebarProvider>
               <Layout>
                 <Autorizacion />
+              </Layout>
+            </SidebarProvider>
+          } />
+          <Route path="/gestion-pedidos" element={
+            <SidebarProvider>
+              <Layout>
+                <GestionPedidos />
+              </Layout>
+            </SidebarProvider>
+          } />
+          <Route path="/gestion-coleccion" element={
+            <SidebarProvider>
+              <Layout>
+                <GestionColeccion />
               </Layout>
             </SidebarProvider>
           } />

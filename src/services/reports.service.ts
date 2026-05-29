@@ -88,6 +88,9 @@ export interface PedidoFinalizado {
       sku: string;
       nombre: string;
       rubro: string;
+      genero?: string;
+      imagen_url?: string | null;
+      marca_id?: string | null;
       xfd?: string | Date;
       fecha_despacho?: string | Date;
     };
@@ -549,6 +552,8 @@ export class ReportsService {
       porRubro: {},
     };
 
+    const allUniqueSKUs = new Set<string>();
+
     pedidos.forEach((pedido) => {
       reporte.totalValorizado += pedido.total_usd;
 
@@ -559,6 +564,7 @@ export class ReportsService {
         pedido.items_pedido.forEach((item) => {
           if (item.productos) {
             uniqueSKUs.add(item.productos.sku);
+            allUniqueSKUs.add(item.productos.sku);
             reporte.totalCantidad += item.cantidad;
 
             const rubro = item.productos.rubro;
@@ -570,8 +576,6 @@ export class ReportsService {
             }
           }
         });
-
-        reporte.totalSKUs += uniqueSKUs.size;
 
         rubroSKUsInPedido.forEach((skus, rubro) => {
           if (!reporte.porRubro[rubro]) {
@@ -649,6 +653,8 @@ export class ReportsService {
         }
       }
     });
+
+    reporte.totalSKUs = allUniqueSKUs.size;
 
     return reporte;
   }

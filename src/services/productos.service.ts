@@ -352,14 +352,14 @@ export class ProductosService {
    * Obtiene productos por tier del usuario
    */
   static async getByUserTier(userTier: string, additionalFilters?: ProductFilters): Promise<Producto[]> {
-    // El usuario puede ver productos de su tier o tiers inferiores
     const tierNumber = parseInt(userTier);
-    const allowedTiers = Array.from({ length: tierNumber + 1 }, (_, i) => i.toString());
-
-    return this.getAll({
-      ...additionalFilters,
-      tier: allowedTiers,
-    });
+    // Tier 0 (Premium) ve todos los productos
+    if (tierNumber === 0) {
+      return this.getAll({ ...additionalFilters });
+    }
+    // Tier N ve productos de tier N hasta 3 (igual que canUserAccessTier y el Catálogo)
+    const allowedTiers = Array.from({ length: 4 - tierNumber }, (_, i) => (i + tierNumber).toString());
+    return this.getAll({ ...additionalFilters, tier: allowedTiers });
   }
 
   /**
