@@ -66,64 +66,51 @@ export class ProductosService {
    */
   static async getAll(filters?: ProductFilters): Promise<Producto[]> {
     try {
-      let query = supabase
-        .from('productos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Aplicar filtros
+      // Obtener el total real de filas con los mismos filtros
+      let countQ = supabase.from('productos').select('*', { count: 'exact', head: true });
       if (filters) {
-        if (filters.tier) {
-          if (Array.isArray(filters.tier)) {
-            query = query.in('tier', filters.tier);
-          } else {
-            query = query.eq('tier', filters.tier);
-          }
+        if (filters.tier) countQ = Array.isArray(filters.tier) ? countQ.in('tier', filters.tier) : countQ.eq('tier', filters.tier);
+        if (filters.rubro) countQ = Array.isArray(filters.rubro) ? countQ.in('rubro', filters.rubro) : countQ.eq('rubro', filters.rubro);
+        if (filters.marca_id) countQ = countQ.eq('marca_id', filters.marca_id);
+        if (filters.genero) countQ = countQ.eq('genero', filters.genero);
+        if (filters.game_plan !== undefined) countQ = countQ.eq('game_plan', filters.game_plan);
+        if (filters.categoria) countQ = countQ.eq('categoria', filters.categoria);
+        if (filters.linea) countQ = countQ.eq('linea', filters.linea);
+        if (filters.search) countQ = countQ.or(`sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`);
+      }
+      const { count, error: countError } = await countQ;
+      if (countError) throw new Error(countError.message);
+      if (!count) return [];
+
+      // Paginar en bloques de 1000 (límite de Supabase)
+      const PAGE_SIZE = 1000;
+      const totalPages = Math.ceil(count / PAGE_SIZE);
+      const results: Producto[] = [];
+
+      for (let page = 0; page < totalPages; page++) {
+        let q = supabase
+          .from('productos')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        if (filters) {
+          if (filters.tier) q = Array.isArray(filters.tier) ? q.in('tier', filters.tier) : q.eq('tier', filters.tier);
+          if (filters.rubro) q = Array.isArray(filters.rubro) ? q.in('rubro', filters.rubro) : q.eq('rubro', filters.rubro);
+          if (filters.marca_id) q = q.eq('marca_id', filters.marca_id);
+          if (filters.genero) q = q.eq('genero', filters.genero);
+          if (filters.game_plan !== undefined) q = q.eq('game_plan', filters.game_plan);
+          if (filters.categoria) q = q.eq('categoria', filters.categoria);
+          if (filters.linea) q = q.eq('linea', filters.linea);
+          if (filters.search) q = q.or(`sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`);
         }
 
-        if (filters.rubro) {
-          if (Array.isArray(filters.rubro)) {
-            query = query.in('rubro', filters.rubro);
-          } else {
-            query = query.eq('rubro', filters.rubro);
-          }
-        }
-
-        if (filters.marca_id) {
-          query = query.eq('marca_id', filters.marca_id);
-        }
-
-        if (filters.genero) {
-          query = query.eq('genero', filters.genero);
-        }
-
-        if (filters.game_plan !== undefined) {
-          query = query.eq('game_plan', filters.game_plan);
-        }
-
-        if (filters.categoria) {
-          query = query.eq('categoria', filters.categoria);
-        }
-
-        if (filters.linea) {
-          query = query.eq('linea', filters.linea);
-        }
-
-        if (filters.search) {
-          query = query.or(
-            `sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`
-          );
-        }
+        const { data, error } = await q;
+        if (error) throw new Error(error.message);
+        if (data) results.push(...data);
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error al obtener productos:', error);
-        throw new Error(error.message);
-      }
-
-      return data || [];
+      return results;
     } catch (error) {
       console.error('Error inesperado al obtener productos:', error);
       throw error;
@@ -135,64 +122,50 @@ export class ProductosService {
    */
   static async getAllWithMarca(filters?: ProductFilters): Promise<ProductoConMarca[]> {
     try {
-      let query = supabase
-        .from('productos')
-        .select('*, marcas(id, nombre)')
-        .order('created_at', { ascending: false });
-
-      // Aplicar filtros (igual que getAll)
+      // Obtener total con filtros
+      let countQ = supabase.from('productos').select('*', { count: 'exact', head: true });
       if (filters) {
-        if (filters.tier) {
-          if (Array.isArray(filters.tier)) {
-            query = query.in('tier', filters.tier);
-          } else {
-            query = query.eq('tier', filters.tier);
-          }
+        if (filters.tier) countQ = Array.isArray(filters.tier) ? countQ.in('tier', filters.tier) : countQ.eq('tier', filters.tier);
+        if (filters.rubro) countQ = Array.isArray(filters.rubro) ? countQ.in('rubro', filters.rubro) : countQ.eq('rubro', filters.rubro);
+        if (filters.marca_id) countQ = countQ.eq('marca_id', filters.marca_id);
+        if (filters.genero) countQ = countQ.eq('genero', filters.genero);
+        if (filters.game_plan !== undefined) countQ = countQ.eq('game_plan', filters.game_plan);
+        if (filters.categoria) countQ = countQ.eq('categoria', filters.categoria);
+        if (filters.linea) countQ = countQ.eq('linea', filters.linea);
+        if (filters.search) countQ = countQ.or(`sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`);
+      }
+      const { count, error: countError } = await countQ;
+      if (countError) throw new Error(countError.message);
+      if (!count) return [];
+
+      const PAGE_SIZE = 1000;
+      const totalPages = Math.ceil(count / PAGE_SIZE);
+      const results: ProductoConMarca[] = [];
+
+      for (let page = 0; page < totalPages; page++) {
+        let q = supabase
+          .from('productos')
+          .select('*, marcas(id, nombre)')
+          .order('created_at', { ascending: false })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        if (filters) {
+          if (filters.tier) q = Array.isArray(filters.tier) ? q.in('tier', filters.tier) : q.eq('tier', filters.tier);
+          if (filters.rubro) q = Array.isArray(filters.rubro) ? q.in('rubro', filters.rubro) : q.eq('rubro', filters.rubro);
+          if (filters.marca_id) q = q.eq('marca_id', filters.marca_id);
+          if (filters.genero) q = q.eq('genero', filters.genero);
+          if (filters.game_plan !== undefined) q = q.eq('game_plan', filters.game_plan);
+          if (filters.categoria) q = q.eq('categoria', filters.categoria);
+          if (filters.linea) q = q.eq('linea', filters.linea);
+          if (filters.search) q = q.or(`sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`);
         }
 
-        if (filters.rubro) {
-          if (Array.isArray(filters.rubro)) {
-            query = query.in('rubro', filters.rubro);
-          } else {
-            query = query.eq('rubro', filters.rubro);
-          }
-        }
-
-        if (filters.marca_id) {
-          query = query.eq('marca_id', filters.marca_id);
-        }
-
-        if (filters.genero) {
-          query = query.eq('genero', filters.genero);
-        }
-
-        if (filters.game_plan !== undefined) {
-          query = query.eq('game_plan', filters.game_plan);
-        }
-
-        if (filters.categoria) {
-          query = query.eq('categoria', filters.categoria);
-        }
-
-        if (filters.linea) {
-          query = query.eq('linea', filters.linea);
-        }
-
-        if (filters.search) {
-          query = query.or(
-            `sku.ilike.%${filters.search}%,nombre.ilike.%${filters.search}%`
-          );
-        }
+        const { data, error } = await q;
+        if (error) throw new Error(error.message);
+        if (data) results.push(...(data as ProductoConMarca[]));
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error al obtener productos con marca:', error);
-        throw new Error(error.message);
-      }
-
-      return data as ProductoConMarca[] || [];
+      return results;
     } catch (error) {
       console.error('Error inesperado al obtener productos con marca:', error);
       throw error;
@@ -362,93 +335,60 @@ export class ProductosService {
     return this.getAll({ ...additionalFilters, tier: allowedTiers });
   }
 
-  /**
-   * Obtiene todos los rubros únicos
-   */
-  static async getRubros(): Promise<string[]> {
-    try {
+  /** Helper: pagina una columna y devuelve sus valores únicos no nulos */
+  private static async fetchDistinctColumn(column: 'rubro' | 'linea' | 'categoria' | 'genero'): Promise<string[]> {
+    const { count, error: countError } = await supabase
+      .from('productos')
+      .select('*', { count: 'exact', head: true });
+    if (countError) throw new Error(countError.message);
+    if (!count) return [];
+
+    const PAGE_SIZE = 1000;
+    const totalPages = Math.ceil(count / PAGE_SIZE);
+    const seen = new Set<string>();
+
+    for (let page = 0; page < totalPages; page++) {
       const { data, error } = await supabase
         .from('productos')
-        .select('rubro')
-        .order('rubro');
+        .select(column)
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      data?.forEach((row) => { if (row[column]) seen.add(row[column] as string); });
+    }
 
-      if (error) {
-        console.error('Error al obtener rubros:', error);
-        throw new Error(error.message);
-      }
+    return [...seen].sort();
+  }
 
-      // Extraer valores únicos
-      const rubros = [...new Set(data?.map(p => p.rubro) || [])];
-      return rubros.filter(Boolean); // Remover valores null/undefined
+  static async getRubros(): Promise<string[]> {
+    try {
+      return await this.fetchDistinctColumn('rubro');
     } catch (error) {
       console.error('Error inesperado al obtener rubros:', error);
       throw error;
     }
   }
 
-  /**
-   * Obtiene todas las líneas únicas
-   */
   static async getLineas(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('linea')
-        .order('linea');
-
-      if (error) {
-        console.error('Error al obtener líneas:', error);
-        throw new Error(error.message);
-      }
-
-      const lineas = [...new Set(data?.map(p => p.linea) || [])];
-      return lineas.filter(Boolean);
+      return await this.fetchDistinctColumn('linea');
     } catch (error) {
       console.error('Error inesperado al obtener líneas:', error);
       throw error;
     }
   }
 
-  /**
-   * Obtiene todas las categorías únicas
-   */
   static async getCategorias(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('categoria')
-        .order('categoria');
-
-      if (error) {
-        console.error('Error al obtener categorías:', error);
-        throw new Error(error.message);
-      }
-
-      const categorias = [...new Set(data?.map(p => p.categoria) || [])];
-      return categorias.filter(Boolean);
+      return await this.fetchDistinctColumn('categoria');
     } catch (error) {
       console.error('Error inesperado al obtener categorías:', error);
       throw error;
     }
   }
 
-  /**
-   * Obtiene todos los géneros únicos
-   */
   static async getGeneros(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('genero')
-        .order('genero');
-
-      if (error) {
-        console.error('Error al obtener géneros:', error);
-        throw new Error(error.message);
-      }
-
-      const generos = [...new Set(data?.map(p => p.genero) || [])];
-      return generos.filter(Boolean);
+      return await this.fetchDistinctColumn('genero');
     } catch (error) {
       console.error('Error inesperado al obtener géneros:', error);
       throw error;

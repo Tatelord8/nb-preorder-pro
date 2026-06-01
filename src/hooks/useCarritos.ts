@@ -22,8 +22,7 @@ export function useCarritos() {
           total_items,
           total_unidades,
           created_at,
-          clientes(nombre, tier, vendedor_id),
-          vendedores(nombre)
+          clientes(nombre, tier, vendedor_id)
         `)
         .order('created_at', { ascending: false });
 
@@ -34,6 +33,21 @@ export function useCarritos() {
 
       if (!carritosData || carritosData.length === 0) {
         return [];
+      }
+
+      // Obtener nombres de vendedores en batch
+      const vendedorIds = [...new Set(
+        carritosData
+          .map(c => c.clientes?.vendedor_id)
+          .filter(Boolean) as string[]
+      )];
+      const vendedoresMap = new Map<string, string>();
+      if (vendedorIds.length > 0) {
+        const { data: vendedoresData } = await supabase
+          .from("vendedores")
+          .select("id, nombre")
+          .in("id", vendedorIds);
+        vendedoresData?.forEach(v => vendedoresMap.set(v.id, v.nombre));
       }
 
       // Procesar carritos y obtener información de productos
@@ -101,10 +115,11 @@ export function useCarritos() {
             0
           );
 
+          const vendedorId = carrito.clientes?.vendedor_id || null;
           carritosProcesados.push({
             id: carrito.id,
             cliente_id: carrito.cliente_id,
-            vendedor_id: carrito.clientes?.vendedor_id || null,
+            vendedor_id: vendedorId,
             total_usd: totalCarrito,
             estado: 'pending',
             created_at: carrito.created_at,
@@ -112,8 +127,8 @@ export function useCarritos() {
               nombre: carrito.clientes.nombre,
               tier: carrito.clientes.tier
             } : undefined,
-            vendedores: carrito.vendedores ? {
-              nombre: carrito.vendedores.nombre
+            vendedores: vendedorId && vendedoresMap.has(vendedorId) ? {
+              nombre: vendedoresMap.get(vendedorId)!
             } : undefined,
             items_pedido: itemsMapeados
           });

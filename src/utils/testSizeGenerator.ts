@@ -24,8 +24,8 @@ const testCases: Array<{ product: ProductSizeInfo; expectedSizes: string[]; desc
   // Calzados Unisex
   {
     product: { rubro: 'Calzados', genero: 'Unisex' },
-    expectedSizes: ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'],
-    description: 'Calzados Unisex - tallas 4-13'
+    expectedSizes: ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'],
+    description: 'Calzados Unisex - tallas 4-12'
   },
   
   // Prendas Mens

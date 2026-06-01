@@ -150,7 +150,7 @@ Descripción: ${sizeInfo.description}
           <div>
             <h4 className="font-medium">Calzados Unisex:</h4>
             <div className="flex flex-wrap gap-1 mt-1">
-              {['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'].map(size => (
+              {['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12'].map(size => (
                 <Badge key={size} variant="outline">{size}</Badge>
               ))}
             </div>
